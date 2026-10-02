@@ -1,0 +1,9 @@
+[
+  {"id":"s1","barcode":"4791001000011","name":"Munchee Super Cream Cracker 490g","category":"Biscuits & Confectionery","aisle":"03","bay":"3B","ledger_stock":70,"unit_cost":310,"unit_price":395,"base_rate":3.0},
+  {"id":"s2","barcode":"4791001000028","name":"Highland Fresh Milk 1L","category":"Chilled Dairy","aisle":"05","bay":"5A","ledger_stock":32,"unit_cost":340,"unit_price":420,"base_rate":4.0},
+  {"id":"s3","barcode":"4791001000035","name":"Anchor Full Cream Milk Powder 400g","category":"Chilled Dairy","aisle":"05","bay":"5C","ledger_stock":41,"unit_cost":780,"unit_price":920,"base_rate":2.5},
+  {"id":"s4","barcode":"4791001000042","name":"Keells Samba Rice 5kg","category":"Dry Staples","aisle":"01","bay":"1A","ledger_stock":120,"unit_cost":1050,"unit_price":1290,"base_rate":3.5},
+  {"id":"s5","barcode":"4791001000059","name":"Lipton Yellow Label Tea 200g","category":"Tea & Beverages","aisle":"02","bay":"2B","ledger_stock":60,"unit_cost":640,"unit_price":790,"base_rate":2.0},
+  {"id":"s6","barcode":"4791001000066","name":"Munchee Chocolate Cream Biscuits 85g","category":"Biscuits & Confectionery","aisle":"03","bay":"3A","ledger_stock":90,"unit_cost":95,"unit_price":130,"base_rate":3.2},
+  {"id":"s7","barcode":"4791001000073","name":"Maliban Lemon Puff 200g","category":"Biscuits & Confectionery","aisle":"03","bay":"3C","ledger_stock":55,"unit_cost":210,"unit_price":275,"base_rate":2.2}
+]
