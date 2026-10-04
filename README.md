@@ -19,7 +19,7 @@ docs/       Scout_DevGuide, Gate 1 submission
 
 ## Quickstart
 
-**Prereqs:** Python 3.11+, Node 20+, Git.
+**Prereqs:** Python 3.12 (the pinned versions in `requirements.txt` target it), Node 20+, Git.
 
 ### Backend
 ```bash
@@ -41,6 +41,16 @@ cp .env.example .env.local        # Windows: copy .env.example .env.local
 npm run dev
 ```
 App: http://localhost:3000
+
+**Load demo data** (optional; the in-memory store already ships the 200-SKU catalog):
+```bash
+# with SUPABASE_URL / SUPABASE_KEY set: wipes the demo tables, loads 14 days of history (~20k rows)
+python -m app.generator.seed --phantom s1 --scenario frozen
+# or: write a CSV and push it into a running API
+python -m app.generator.generate_mock_pos --days 14 --phantom s1 --out mock_pos.csv
+python -m app.generator.load_csv mock_pos.csv --api http://localhost:8000
+```
+Phantom scenarios: `frozen`, `damaged`, `backroom_stuck` (see `app/generator/generate_mock_pos.py`).
 
 The app runs **out of the box with no keys**: the backend uses an in-memory demo store and a
 template briefing if `GEMINI_API_KEY` is empty; the frontend falls back to mock data if the API is down.
@@ -66,12 +76,20 @@ Keep `backend/app/models/*.py` and `frontend/src/lib/types.ts` in sync. Change b
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/v1/pos/stream` | Batch-ingest POS rows |
+| POST | `/api/v1/pos/stream` | Batch-ingest POS rows → `{ingested, rejected, errors[]}` (422 if every row is rejected) |
+| POST | `/api/v1/pos/stream/csv` | Same, body is raw CSV (`Content-Type: text/csv`) |
 | GET | `/api/v1/anomalies` | Flagged SKUs |
 | GET | `/api/v1/anomalies/metrics` | Dashboard KPIs |
 | POST | `/api/v1/anomalies/run` | Run detection |
 | GET | `/api/v1/agent/checklist` | Gemini-built aisle-grouped checklist |
-| POST | `/api/v1/audit/reconcile` | Staff action: restocked / damaged / false_alarm |
-| POST | `/api/v1/simulate/{phantom\|normal\|reset}` | Judge demo hooks |
+| POST | `/api/v1/audit/reconcile` | Staff action: restocked / damaged / false_alarm. Idempotent; `damaged` writes `units` off the ledger |
+| GET | `/api/v1/audit/stats` | Action counts + `false_alarm_rate` (threshold calibration) |
+| POST | `/api/v1/simulate/{phantom\|normal\|reset}` | Judge demo hooks (`?variant=frozen\|damaged\|backroom_stuck` for phantom) |
+
+### Feature store (for the ML engine)
+`app.ml.feature_pipeline.get_velocity(sku_id=None, since=None, until=None)` returns a dense frame with columns
+`sku_id, hour, units, hour_of_day, day_of_week, is_peak` — one row per SKU per trading hour, explicit zeros
+included (a silent SKU shows a trailing run of zeros). `hours_since_last_sale()` gives the per-SKU gap.
+All timestamps are store-clock (Asia/Colombo, UTC+5:30) wall times; tz-aware input is converted on ingest.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the git workflow.

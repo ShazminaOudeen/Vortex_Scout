@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
 
+    # Ingestion
+    default_store_id: str = "store_01"
+    ingest_chunk_size: int = 500  # rows per Supabase insert
+
     # Alert trigger: flag when P(void) >= threshold AND ledger stock > 0
     void_threshold: float = 0.75
 

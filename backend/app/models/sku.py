@@ -10,3 +10,4 @@ class Sku(BaseModel):
     bay: str
     ledger_stock: int
     unit_cost: float
+    unit_price: float = 0

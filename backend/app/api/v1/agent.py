@@ -9,5 +9,5 @@ router = APIRouter(prefix="/agent", tags=["agent"])
 
 @router.get("/checklist", response_model=Checklist)
 def checklist():
-    open_items = [a for a in store.ANOMALIES.values() if a.status == "open"]
+    open_items = store.list_anomalies(status="open")
     return build_checklist(open_items)
