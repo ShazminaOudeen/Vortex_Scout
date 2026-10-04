@@ -13,3 +13,14 @@ class PosTransaction(BaseModel):
 
 class PosBatch(BaseModel):
     transactions: list[PosTransaction]
+
+
+class IngestError(BaseModel):
+    index: int  # position of the row in the submitted batch
+    message: str
+
+
+class IngestResult(BaseModel):
+    ingested: int
+    rejected: int = 0
+    errors: list[IngestError] = Field(default_factory=list)  # capped; `rejected` is the full count
