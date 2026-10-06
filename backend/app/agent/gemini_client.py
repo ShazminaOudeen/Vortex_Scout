@@ -7,6 +7,9 @@ fails, we fall back to a template so the demo never breaks.
 TODO(Task 2): let Gemini also rank items/priorities (use response_mime_type
 "application/json" + a response schema) once the basic flow works.
 """
+
+import time
+from google.genai import errors
 import json
 import logging
 from collections import defaultdict
@@ -39,7 +42,18 @@ def _template_briefing(items: list[Anomaly]) -> str:
     return f"Good morning! {len(items)} high-probability voids detected across aisles {aisles}."
 
 
+_CACHE: dict[tuple, tuple[float, str]] = {}
+CACHE_SECONDS = 300
+RETRY_DELAYS = (1, 2)  # seconds; keeps the worst case short for /floor
+RETRYABLE = {429, 500, 503, 504}
+
+
 def _llm_briefing(items: list[Anomaly]) -> str:
+    key = tuple(sorted(i.id for i in items))
+    hit = _CACHE.get(key)
+    if hit and time.time() - hit[0] < CACHE_SECONDS:
+        return hit[1]
+
     s = get_settings()
     client = genai.Client(api_key=s.gemini_api_key)
     payload = [
@@ -47,12 +61,29 @@ def _llm_briefing(items: list[Anomaly]) -> str:
          "ledger": i.ledger_stock, "hours_since_sale": i.hours_since_last_sale}
         for i in items
     ]
-    resp = client.models.generate_content(
-        model=s.gemini_model,
-        contents=BRIEFING_PROMPT.format(items=json.dumps(payload)),
-        config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),
-    )
-    return (resp.text or "").strip()
+    last_exc: Exception | None = None
+    for delay in (0, *RETRY_DELAYS):
+        if delay:
+            time.sleep(delay)
+        try:
+            resp = client.models.generate_content(
+                model=s.gemini_model,
+                contents=BRIEFING_PROMPT.format(items=json.dumps(payload)),
+                config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),
+            )
+        except errors.APIError as e:
+            if e.code not in RETRYABLE:
+                raise
+            last_exc = e
+            log.warning("Gemini %s, retrying", e.code)
+            continue
+        text = (resp.text or "").strip()
+        if not text:
+            log.warning("Gemini returned empty text; using template")
+            return ""
+        _CACHE[key] = (time.time(), text)
+        return text
+    raise last_exc  # type: ignore[misc]
 
 
 def build_checklist(items: list[Anomaly]) -> Checklist:

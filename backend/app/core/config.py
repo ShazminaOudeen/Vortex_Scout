@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     # Gemini. NOTE: gemini-1.5-flash has been retired by Google; keep the
     # model name in env so it can be swapped without a code change.
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.8-flash"
 
     # Ingestion
     default_store_id: str = "store_01"
