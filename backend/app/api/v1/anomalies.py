@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 
 from app.core import store
-from app.core.config import get_settings
 from app.models.anomaly import Anomaly, CategoryShare, DashboardMetrics
+from app.services import detection
 
 router = APIRouter(prefix="/anomalies", tags=["anomalies"])
 
@@ -32,11 +32,12 @@ def metrics():
 
 @router.post("/run")
 def run_detection():
-    """Run feature pipeline -> ZIP baseline -> Isolation Forest -> filter.
+    """Run shelf-void detection on the latest sales data.
 
-    TODO(Task 2): call app.ml.* and persist results. Alert rule:
-    p_void >= settings.void_threshold AND ledger_stock > 0.
+    feature store -> baseline scorer (app/ml/baseline.py) -> open / refresh / clear anomalies.
+    Alert rule: p_void >= settings.void_threshold AND ledger stock > 0. Returns what was flagged and
+    what changed (`created` / `updated` / `cleared`) so the /simulate log can show it.
+
+    TODO(Task 2): B3/B4 swap in the Zero-Inflated Poisson model and Isolation Forest behind the same scorer.
     """
-    thr = get_settings().void_threshold
-    flagged = [a for a in store.list_anomalies() if a.p_void >= thr and a.ledger_stock > 0]
-    return {"flagged": len(flagged)}
+    return detection.run_detection()

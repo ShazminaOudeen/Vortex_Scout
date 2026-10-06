@@ -39,7 +39,9 @@ def _template_briefing(items: list[Anomaly]) -> str:
     if not items:
         return "Good morning! No likely shelf voids right now."
     aisles = ", ".join(sorted({i.aisle for i in items}))
-    return f"Good morning! {len(items)} high-probability voids detected across aisles {aisles}."
+    n, many_aisles = len(items), len({i.aisle for i in items}) > 1
+    return (f"Good morning! {n} high-probability {'voids' if n > 1 else 'void'} detected "
+            f"in {'aisles' if many_aisles else 'aisle'} {aisles}.")
 
 
 _CACHE: dict[tuple, tuple[float, str]] = {}
