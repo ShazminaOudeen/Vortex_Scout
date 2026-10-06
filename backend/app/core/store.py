@@ -275,6 +275,34 @@ def create_anomaly(sku_id: str, p_void: float, hours_since_last_sale: float,
     return a
 
 
+def update_anomaly(anomaly_id: str, p_void: float, hours_since_last_sale: float, ledger_stock: int) -> bool:
+    """Refresh the numbers on an *open* anomaly (keeps its id and detected_at). Returns True if updated."""
+    if (sb := _sb()) is not None:
+        rows = (sb.table("stockout_anomalies")
+                .update({"p_void": round(p_void, 3), "hours_since_last_sale": round(hours_since_last_sale, 1),
+                         "ledger_stock_at_detection": ledger_stock})
+                .eq("id", anomaly_id).eq("status", "open").execute().data)
+        return bool(rows)
+    a = ANOMALIES.get(anomaly_id)
+    if a is None or a.status != "open":
+        return False
+    a.p_void, a.hours_since_last_sale, a.ledger_stock = round(p_void, 3), round(hours_since_last_sale, 1), ledger_stock
+    return True
+
+
+def delete_anomaly(anomaly_id: str) -> bool:
+    """Remove an *open* anomaly the detector no longer supports. Resolved anomalies are never deleted
+    (they have audit history). Returns True if a row was removed."""
+    if (sb := _sb()) is not None:
+        rows = sb.table("stockout_anomalies").delete().eq("id", anomaly_id).eq("status", "open").execute().data
+        return bool(rows)
+    a = ANOMALIES.get(anomaly_id)
+    if a is None or a.status != "open":
+        return False
+    del ANOMALIES[anomaly_id]
+    return True
+
+
 def resolve_anomaly(anomaly_id: str, status: str) -> Anomaly | None:
     """Close an *open* anomaly. Returns the updated anomaly, or None if it doesn't exist or
     was already resolved (the check-and-set is a single conditional UPDATE, so two
