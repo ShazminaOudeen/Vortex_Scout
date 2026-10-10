@@ -1,16 +1,16 @@
-"""Run shelf-void detection end to end with adaptive threshold calibration (Feature B5).
+"""Run shelf-void detection end to end with adaptive threshold calibration and void classification (Features B5 & B6).
 
-    feature store (get_velocity) -> ML scorer -> open / refresh / clear anomalies
+    feature store (get_velocity) -> ML scorer -> classify void type -> open / refresh / clear anomalies
 
 The detector is the source of truth for open anomalies: after a run, the open anomalies are exactly the
 SKUs it currently flags. A SKU that is still flagged keeps its anomaly (numbers refreshed, same id and
 detected_at); a newly flagged SKU gets a new one; an open anomaly whose SKU is no longer flagged is
 removed. Anomalies a supervisor already resolved are never touched.
 
-Feature B5: Threshold Calibration:
-    Automatically adjusts void_threshold based on the live false_alarm_rate from store.audit_action_counts().
-    High false alarms (> 15%) raise the threshold to reduce alert fatigue. Low false alarms with good volume
-    allow slightly more sensitive detection.
+Features:
+    B5: Threshold Calibration: Automatically adjusts void_threshold based on audit feedback.
+    B6: Void Type Classification: Classifies voids as 'frozen', 'damaged', or 'backroom_stuck'
+        and determines suggested actions ('restocked' vs 'damaged').
 """
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ from app.core import store
 from app.core.config import get_settings
 from app.ml.baseline import score_voids
 from app.ml.feature_pipeline import get_velocity, hours_since_last_sale
+from app.ml.void_classifier import classify_void
 
 MIN_CALIBRATION_AUDITS = 5
 
@@ -50,17 +51,14 @@ def calibrate_threshold(base_threshold: float | None = None, min_audits: int = M
 
     # Threshold calibration rules
     if false_alarm_rate > 0.20:
-        # Severe alert fatigue: increase threshold significantly
         effective = min(0.90, base_threshold + 0.10)
         status = "conservative_high"
         reason = f"High false alarm rate ({false_alarm_rate:.1%}); increased threshold to reduce alert fatigue."
     elif false_alarm_rate > 0.10:
-        # Moderate false alarms: slight increase
         effective = min(0.85, base_threshold + 0.05)
         status = "conservative"
         reason = f"Elevated false alarm rate ({false_alarm_rate:.1%}); adjusted threshold slightly."
     elif false_alarm_rate < 0.05 and total >= 10:
-        # High precision & trusted volume: can afford more sensitive detection
         effective = max(0.65, base_threshold - 0.05)
         status = "sensitive"
         reason = f"Low false alarm rate ({false_alarm_rate:.1%}); tuned threshold for higher sensitivity."
@@ -127,17 +125,23 @@ def run_detection(threshold_override: float | None = None) -> dict:
     keep = set()
     for r, sku in flagged:
         hours = float(gap.get(r.sku_id, r.silent_hours))
+        void_type, suggested_action = classify_void(r.sku_id, velocity, category=sku.category)
+
         existing = open_by_sku.get(r.sku_id)
-        if existing and store.update_anomaly(existing, r.p_void, hours, sku.ledger_stock):
+        if existing and store.update_anomaly(existing, r.p_void, hours, sku.ledger_stock,
+                                             void_type=void_type, suggested_action=suggested_action):
             updated += 1
         else:
-            store.create_anomaly(r.sku_id, r.p_void, hours, ledger_stock=sku.ledger_stock)
+            store.create_anomaly(r.sku_id, r.p_void, hours, ledger_stock=sku.ledger_stock,
+                                 void_type=void_type, suggested_action=suggested_action)
             created += 1
         keep.add(r.sku_id)
         alerts.append({
             "sku_id": r.sku_id, "sku_name": sku.name, "aisle": sku.aisle, "bay": sku.bay,
-            "p_void": float(r.p_void), "silent_hours": int(r.silent_hours),
-            "expected_sales": float(r.expected_sales), "ledger_stock": sku.ledger_stock
+            "category": sku.category, "p_void": float(r.p_void),
+            "silent_hours": int(r.silent_hours), "expected_sales": float(r.expected_sales),
+            "ledger_stock": sku.ledger_stock, "void_type": void_type,
+            "suggested_action": suggested_action,
         })
 
     cleared = 0

@@ -1,8 +1,10 @@
+from datetime import datetime
 import pytest
 from fastapi.testclient import TestClient
 
 from app.agent import gemini_client
-from app.core import store
+from app.core import store, timeutil
+from app.generator import demo
 from main import app
 from tests.fake_supabase import FakeSupabase
 
@@ -20,6 +22,14 @@ def _never_call_real_gemini(monkeypatch):
     (retries on 503), burns free-tier quota and makes the briefing text vary between runs. With the LLM
     step stubbed out, build_checklist() falls back to the deterministic template briefing."""
     monkeypatch.setattr(gemini_client, "_llm_briefing", lambda items: "")
+
+
+@pytest.fixture(autouse=True)
+def _deterministic_clock(monkeypatch):
+    """Pin the store clock in tests to prevent random time-of-day Poisson seed drift in simulation tests."""
+    fixed_now = datetime(2026, 10, 6, 13, 0)
+    monkeypatch.setattr(timeutil, "store_now", lambda: fixed_now)
+    monkeypatch.setattr(demo, "store_now", lambda: fixed_now)
 
 
 @pytest.fixture(params=["memory", "supabase_fake"])

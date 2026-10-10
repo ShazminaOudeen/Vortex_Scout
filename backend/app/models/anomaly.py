@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 AnomalyStatus = Literal["open", "restocked", "damaged", "false_alarm"]
 AuditAction = Literal["restocked", "damaged", "false_alarm"]
+VoidType = Literal["frozen", "damaged", "backroom_stuck", "shelf_void"]
 
 
 class Anomaly(BaseModel):
@@ -20,6 +21,8 @@ class Anomaly(BaseModel):
     status: AnomalyStatus = "open"
     detected_at: datetime
     resolved_at: datetime | None = None
+    void_type: str = "frozen"
+    suggested_action: AuditAction = "restocked"
 
 
 class ChecklistGroup(BaseModel):
@@ -43,10 +46,10 @@ class ReconcilePayload(BaseModel):
 
 class ReconcileResult(BaseModel):
     ok: bool
-    already_resolved: bool = False  # True when the anomaly was closed before this call
+    already_resolved: bool = False
     status: AnomalyStatus
-    ledger_stock: int | None = None  # SKU ledger after this call
-    ledger_adjustment: int = 0  # units written off the ledger by this call
+    ledger_stock: int | None = None
+    ledger_adjustment: int = 0
 
 
 class AuditStats(BaseModel):
@@ -54,7 +57,7 @@ class AuditStats(BaseModel):
     restocked: int
     damaged: int
     false_alarm: int
-    false_alarm_rate: float  # false_alarm / total, 0 when nothing reconciled yet
+    false_alarm_rate: float
 
 
 class CategoryShare(BaseModel):
