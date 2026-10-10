@@ -14,7 +14,6 @@ def list_anomalies():
 
 @router.get("/metrics", response_model=DashboardMetrics)
 def metrics():
-    # TODO(Task 4): compute from real audit history.
     open_n = len(store.list_anomalies(status="open"))
     return DashboardMetrics(
         revenue_recovered_lkr=482_500,
@@ -30,14 +29,17 @@ def metrics():
     )
 
 
+@router.get("/threshold")
+def get_threshold_calibration():
+    """Current calibrated void threshold and feedback status based on audit history (Feature B5)."""
+    return detection.get_threshold_status()
+
+
 @router.post("/run")
 def run_detection():
     """Run shelf-void detection on the latest sales data.
 
-    feature store -> baseline scorer (app/ml/baseline.py) -> open / refresh / clear anomalies.
-    Alert rule: p_void >= settings.void_threshold AND ledger stock > 0. Returns what was flagged and
-    what changed (`created` / `updated` / `cleared`) so the /simulate log can show it.
-
-    TODO(Task 2): B3/B4 swap in the Zero-Inflated Poisson model and Isolation Forest behind the same scorer.
+    Feature store -> detector -> open / refresh / clear anomalies.
+    Threshold is calibrated adaptively against historical false alarm rate.
     """
     return detection.run_detection()

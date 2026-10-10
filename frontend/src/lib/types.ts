@@ -2,6 +2,7 @@
 
 export type AnomalyStatus = "open" | "restocked" | "damaged" | "false_alarm";
 export type AuditAction = "restocked" | "damaged" | "false_alarm";
+export type VoidType = "frozen" | "damaged" | "backroom_stuck" | "shelf_void";
 
 export interface Sku {
   id: string;
@@ -27,17 +28,19 @@ export interface Anomaly {
   p_void: number; // 0..1, flagged when >= 0.75
   status: AnomalyStatus;
   detected_at: string; // ISO timestamp
-  resolved_at?: string | null; // API always sends it (null while open); optional so mocks needn't
+  resolved_at?: string | null;
+  void_type?: VoidType;
+  suggested_action?: AuditAction;
 }
 
 export interface ChecklistGroup {
   aisle: string;
-  title: string; // e.g. "Aisle 03 — Confectionery & Biscuits"
+  title: string;
   items: Anomaly[];
 }
 
 export interface Checklist {
-  briefing: string; // Gemini natural-language summary
+  briefing: string;
   estimated_minutes: number;
   groups: ChecklistGroup[];
 }
@@ -46,15 +49,15 @@ export interface ReconcilePayload {
   anomaly_id: string;
   action: AuditAction;
   associate?: string;
-  units?: number; // >= 0; for "damaged" this many units are written off the ledger
+  units?: number;
 }
 
 export interface ReconcileResult {
   ok: boolean;
-  already_resolved: boolean; // true on a double tap: nothing changed, no 2nd audit row
+  already_resolved: boolean;
   status: AnomalyStatus;
-  ledger_stock: number | null; // SKU ledger after this call
-  ledger_adjustment: number; // units written off by this call (<= 0)
+  ledger_stock: number | null;
+  ledger_adjustment: number;
 }
 
 export interface AuditStats {
@@ -62,25 +65,24 @@ export interface AuditStats {
   restocked: number;
   damaged: number;
   false_alarm: number;
-  false_alarm_rate: number; // 0..1
+  false_alarm_rate: number;
 }
 
 export interface IngestError {
-  index: number; // position of the row in the submitted batch
+  index: number;
   message: string;
 }
 
-// POST /api/v1/pos/stream (and /pos/stream/csv). HTTP 422 with this same body if every row was rejected.
 export interface IngestResult {
   ingested: number;
   rejected: number;
-  errors: IngestError[]; // capped at 100; `rejected` is the full count
+  errors: IngestError[];
 }
 
 export interface DashboardMetrics {
   revenue_recovered_lkr: number;
   active_voids: number;
-  audit_completion_rate: number; // 0..1
-  iri_rate: number; // inventory record inaccuracy 0..1
+  audit_completion_rate: number;
+  iri_rate: number;
   category_breakdown: { category: string; share: number }[];
 }

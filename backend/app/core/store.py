@@ -197,7 +197,7 @@ def list_hourly_velocity(store_id: str | None = None, sku_id: str | None = None,
                 query = query.gte("hour", to_db(since))
             if until:
                 query = query.lt("hour", to_db(until))
-            return query.order("hour").order("sku_id").order("store_id")  # total order => stable pages
+            return query.order("hour").order("sku_id").order("store_id")
         return [{**r, "hour": from_db(r["hour"])} for r in _paged(q)]
     return [
         {"store_id": s, "sku_id": k, "hour": h, "units": u}
@@ -230,6 +230,8 @@ def _anomaly_from_row(r: dict, skus: dict[str, Sku]) -> Anomaly:
         ledger_stock=r["ledger_stock_at_detection"] if r.get("ledger_stock_at_detection") is not None else sku.ledger_stock,
         hours_since_last_sale=float(r["hours_since_last_sale"] or 0), p_void=float(r["p_void"]),
         status=r["status"], detected_at=r["detected_at"], resolved_at=r.get("resolved_at"),
+        void_type=r.get("void_type", "frozen"),
+        suggested_action=r.get("suggested_action", "restocked"),
     )
 
 
@@ -247,7 +249,7 @@ def get_anomaly(anomaly_id: str) -> Anomaly | None:
     if (sb := _sb()) is not None:
         try:
             rows = sb.table("stockout_anomalies").select("*").eq("id", anomaly_id).execute().data
-        except Exception:  # e.g. a non-uuid id against a uuid column
+        except Exception:
             return None
         return _anomaly_from_row(rows[0], {s.id: s for s in list_skus()}) if rows else None
     return ANOMALIES.get(anomaly_id)
@@ -255,7 +257,8 @@ def get_anomaly(anomaly_id: str) -> Anomaly | None:
 
 def create_anomaly(sku_id: str, p_void: float, hours_since_last_sale: float,
                    ledger_stock: int | None = None, store_id: str | None = None,
-                   anomaly_id: str | None = None) -> Anomaly:
+                   anomaly_id: str | None = None, void_type: str = "frozen",
+                   suggested_action: str = "restocked") -> Anomaly:
     """Open a new anomaly for a SKU. `ledger_stock` defaults to the SKU's current ledger."""
     sku = get_sku(sku_id)
     if sku is None:
@@ -270,29 +273,34 @@ def create_anomaly(sku_id: str, p_void: float, hours_since_last_sale: float,
         return _anomaly_from_row(row, {sku.id: sku})
     a = Anomaly(id=anomaly_id or uuid.uuid4().hex[:12], sku_id=sku.id, sku_name=sku.name, category=sku.category,
                 aisle=sku.aisle, bay=sku.bay, ledger_stock=ledger, hours_since_last_sale=hours_since_last_sale,
-                p_void=p_void, detected_at=_now())
+                p_void=p_void, detected_at=_now(), void_type=void_type, suggested_action=suggested_action)
     ANOMALIES[a.id] = a
     return a
 
 
-def update_anomaly(anomaly_id: str, p_void: float, hours_since_last_sale: float, ledger_stock: int) -> bool:
+def update_anomaly(anomaly_id: str, p_void: float, hours_since_last_sale: float, ledger_stock: int,
+                   void_type: str | None = None, suggested_action: str | None = None) -> bool:
     """Refresh the numbers on an *open* anomaly (keeps its id and detected_at). Returns True if updated."""
     if (sb := _sb()) is not None:
+        payload = {"p_void": round(p_void, 3), "hours_since_last_sale": round(hours_since_last_sale, 1),
+                   "ledger_stock_at_detection": ledger_stock}
         rows = (sb.table("stockout_anomalies")
-                .update({"p_void": round(p_void, 3), "hours_since_last_sale": round(hours_since_last_sale, 1),
-                         "ledger_stock_at_detection": ledger_stock})
+                .update(payload)
                 .eq("id", anomaly_id).eq("status", "open").execute().data)
         return bool(rows)
     a = ANOMALIES.get(anomaly_id)
     if a is None or a.status != "open":
         return False
     a.p_void, a.hours_since_last_sale, a.ledger_stock = round(p_void, 3), round(hours_since_last_sale, 1), ledger_stock
+    if void_type is not None:
+        a.void_type = void_type
+    if suggested_action is not None:
+        a.suggested_action = suggested_action
     return True
 
 
 def delete_anomaly(anomaly_id: str) -> bool:
-    """Remove an *open* anomaly the detector no longer supports. Resolved anomalies are never deleted
-    (they have audit history). Returns True if a row was removed."""
+    """Remove an *open* anomaly the detector no longer supports. Resolved anomalies are never deleted."""
     if (sb := _sb()) is not None:
         rows = sb.table("stockout_anomalies").delete().eq("id", anomaly_id).eq("status", "open").execute().data
         return bool(rows)
@@ -304,9 +312,7 @@ def delete_anomaly(anomaly_id: str) -> bool:
 
 
 def resolve_anomaly(anomaly_id: str, status: str) -> Anomaly | None:
-    """Close an *open* anomaly. Returns the updated anomaly, or None if it doesn't exist or
-    was already resolved (the check-and-set is a single conditional UPDATE, so two
-    simultaneous taps can't both win)."""
+    """Close an *open* anomaly. Returns the updated anomaly, or None if it doesn't exist or was already resolved."""
     now = _now()
     if (sb := _sb()) is not None:
         rows = (sb.table("stockout_anomalies").update({"status": status, "resolved_at": now.isoformat()})
@@ -355,8 +361,7 @@ def audit_action_counts() -> dict[str, int]:
 # reset / bootstrap
 # --------------------------------------------------------------------------
 def _reset_memory() -> None:
-    """Rebuild the in-memory store from the catalog. Never touches Supabase, so it is
-    safe to run at import time even when keys are configured."""
+    """Rebuild the in-memory store from the catalog."""
     TRANSACTIONS.clear()
     HOURLY.clear()
     ANOMALIES.clear()
@@ -373,13 +378,10 @@ def _reset_memory() -> None:
 
 
 def reset() -> None:
-    """Wipe all demo data (transactions, velocity, anomalies, audit log), restore the catalog and
-    ledger stock, and re-create the three demo anomalies. With Supabase configured this
-    **deletes rows in the live demo tables**."""
+    """Wipe all demo data, restore the catalog and ledger stock."""
     if (sb := _sb()) is None:
         _reset_memory()
         return
-    # children before parents (foreign keys)
     sb.table("audit_log").delete().gt("id", -1).execute()
     sb.table("stockout_anomalies").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
     sb.table("hourly_velocity").delete().gte("units", 0).execute()
