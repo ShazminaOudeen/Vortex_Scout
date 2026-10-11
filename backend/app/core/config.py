@@ -8,23 +8,22 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_name: str = "Scout API"
-    cors_origins: Union[str, list[str]] = ["http://localhost:3000", "*"]
+    cors_origins: str = "http://localhost:3000,*"
 
-    @field_validator("cors_origins", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, v: Any) -> list[str]:
-        if isinstance(v, str):
-            val = v.strip()
-            if val == "*":
-                return ["*"]
-            if val.startswith("[") and val.endswith("]"):
-                import json
-                try:
-                    return json.loads(val)
-                except Exception:
-                    pass
-            return [x.strip() for x in val.split(",") if x.strip()]
-        return v
+    @property
+    def cors_origins_list(self) -> list[str]:
+        val = (self.cors_origins or "").strip()
+        if not val or val == "*":
+            return ["*"]
+        if val.startswith("[") and val.endswith("]"):
+            import json
+            try:
+                parsed = json.loads(val)
+                if isinstance(parsed, list):
+                    return [str(x).strip() for x in parsed if str(x).strip()]
+            except Exception:
+                pass
+        return [x.strip() for x in val.split(",") if x.strip()]
 
     # Supabase (leave blank to run on the in-memory demo store)
     supabase_url: str = ""
