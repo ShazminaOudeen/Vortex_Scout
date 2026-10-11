@@ -34,6 +34,8 @@ export interface Anomaly {
   unit_price?: number;
   revenue_at_risk?: number;
   priority_score?: number;
+  expected_sales?: number;
+  why_flagged?: string;
 }
 
 export interface ChecklistGroup {

@@ -51,6 +51,13 @@ def _group(items: list[Anomaly]) -> list[ChecklistGroup]:
     """Group items by aisle and order along the supervisor's physical walk path (Feature C2)."""
     by_aisle: dict[str, list[Anomaly]] = defaultdict(list)
     for it in items:
+        if not getattr(it, "why_flagged", ""):
+            from app.agent.explainer import template_explanation
+            rate = it.expected_sales / max(1.0, it.hours_since_last_sale) if it.expected_sales else 1.0
+            it.why_flagged = template_explanation(
+                it.sku_name, rate, it.hours_since_last_sale, it.ledger_stock,
+                void_type=it.void_type, category=it.category, expected_sales=it.expected_sales,
+            )
         by_aisle[it.aisle].append(it)
     for a in by_aisle:
         by_aisle[a].sort(key=_item_walk_key)
