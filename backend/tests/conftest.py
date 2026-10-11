@@ -22,6 +22,8 @@ def _never_call_real_gemini(monkeypatch):
     (retries on 503), burns free-tier quota and makes the briefing text vary between runs. With the LLM
     step stubbed out, build_checklist() falls back to the deterministic template briefing."""
     monkeypatch.setattr(gemini_client, "_llm_briefing", lambda items: "")
+    monkeypatch.setattr(gemini_client, "_llm_structured_plan", gemini_client._template_plan)
+    gemini_client.CIRCUIT_BREAKER.reset()
 
 
 @pytest.fixture(autouse=True)

@@ -24,3 +24,9 @@ def agent_plan(use_gemini: bool = True):
 def verify_agent():
     return gemini_client.verify_gemini_connection()
 
+
+@router.get("/health")
+def agent_health():
+    """Health check, circuit breaker state, and reliability telemetry (Feature C5)."""
+    return gemini_client.get_agent_health()
+

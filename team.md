@@ -146,7 +146,7 @@ When these work together, the main story is working end to end: *stock sits in t
 | C2 | Smart prioritisation | Shazmina | Done |
 | C3 | "Why flagged" | Shazmina | Done |
 | C4 | Structured JSON output | Shazmina | Done |
-| C5 | Reliability | | |
+| C5 | Reliability | Shazmina | Done |
 | D2 | Completion moment | | |
 | D3 | Installable PWA | | |
 | D4 | Item detail sheet | | |
