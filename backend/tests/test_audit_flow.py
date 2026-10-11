@@ -111,3 +111,40 @@ def test_resolved_items_drop_off_the_checklist(client):
     reconcile(client, anomaly_for(client, "s1")["id"], "restocked")
     data = client.get("/api/v1/agent/checklist").json()
     assert [g["aisle"] for g in data["groups"]] == ["05"]
+
+
+def test_undo_reopens_anomaly(client):
+    a = anomaly_for(client, "s1")
+    reconcile(client, a["id"], "restocked", associate="Nimal")
+    assert anomaly_for(client, "s1")["status"] == "restocked"
+
+    r = client.post("/api/v1/audit/undo", json={"anomaly_id": a["id"], "associate": "Nimal"})
+    assert r.status_code == 200
+    res = r.json()
+    assert res["ok"] is True
+    assert res["reopened"] is True
+    assert res["status"] == "open"
+
+    after = anomaly_for(client, "s1")
+    assert after["status"] == "open"
+    assert after["resolved_at"] is None
+
+    # Appears back on checklist
+    data = client.get("/api/v1/agent/checklist").json()
+    assert "03" in [g["aisle"] for g in data["groups"]]
+
+
+def test_undo_restores_damaged_ledger_stock(client):
+    a = anomaly_for(client, "s1")
+    reconcile(client, a["id"], "damaged", units=10, associate="Nimal")
+    assert ledger("s1") == 60
+
+    r = client.post("/api/v1/audit/undo", json={"anomaly_id": a["id"], "associate": "Nimal"})
+    assert r.status_code == 200
+    assert r.json()["ledger_stock"] == 70
+    assert ledger("s1") == 70
+
+
+def test_undo_unknown_id(client):
+    r = client.post("/api/v1/audit/undo", json={"anomaly_id": "nonexistent"})
+    assert r.status_code == 404

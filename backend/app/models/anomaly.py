@@ -85,6 +85,19 @@ class ReconcileResult(BaseModel):
     ledger_adjustment: int = 0
 
 
+class UndoPayload(BaseModel):
+    anomaly_id: str
+    associate: str | None = None
+
+
+class UndoResult(BaseModel):
+    ok: bool
+    reopened: bool
+    anomaly_id: str
+    status: AnomalyStatus
+    ledger_stock: int | None = None
+
+
 class AuditStats(BaseModel):
     total: int
     restocked: int

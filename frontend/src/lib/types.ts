@@ -81,6 +81,19 @@ export interface ReconcileResult {
   ledger_adjustment: number;
 }
 
+export interface UndoPayload {
+  anomaly_id: string;
+  associate?: string;
+}
+
+export interface UndoResult {
+  ok: boolean;
+  reopened: boolean;
+  anomaly_id: string;
+  status: AnomalyStatus;
+  ledger_stock: number | null;
+}
+
 export interface AuditStats {
   total: number;
   restocked: number;

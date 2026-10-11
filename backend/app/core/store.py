@@ -382,6 +382,19 @@ def resolve_anomaly(anomaly_id: str, status: str) -> Anomaly | None:
     return a
 
 
+def reopen_anomaly(anomaly_id: str) -> Anomaly | None:
+    """Reopen a previously resolved anomaly. Returns the updated anomaly, or None if not found."""
+    if (sb := _sb()) is not None:
+        rows = (sb.table("stockout_anomalies").update({"status": "open", "resolved_at": None})
+                .eq("id", anomaly_id).execute().data)
+        return _anomaly_from_row(rows[0], {s.id: s for s in list_skus()}) if rows else None
+    a = ANOMALIES.get(anomaly_id)
+    if a is None:
+        return None
+    a.status, a.resolved_at = "open", None
+    return a
+
+
 # --------------------------------------------------------------------------
 # audit log
 # --------------------------------------------------------------------------
@@ -393,6 +406,24 @@ def append_audit(anomaly_id: str, action: str, associate: str | None = None,
     row = {"id": len(AUDIT_LOG) + 1, **row, "created_at": _now().isoformat()}
     AUDIT_LOG.append(row)
     return row
+
+
+def remove_last_audit(anomaly_id: str) -> dict | None:
+    if (sb := _sb()) is not None:
+        rows = (sb.table("audit_log")
+                .select("*")
+                .eq("anomaly_id", anomaly_id)
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute().data)
+        if rows:
+            sb.table("audit_log").delete().eq("id", rows[0]["id"]).execute()
+            return rows[0]
+        return None
+    for i in range(len(AUDIT_LOG) - 1, -1, -1):
+        if str(AUDIT_LOG[i].get("anomaly_id")) == str(anomaly_id):
+            return AUDIT_LOG.pop(i)
+    return None
 
 
 def list_audit(limit: int = 50) -> list[dict]:
