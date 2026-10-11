@@ -1,7 +1,14 @@
 from fastapi import APIRouter, HTTPException
 
 from app.core import store
-from app.models.anomaly import AuditFeedItem, AuditStats, ReconcilePayload, ReconcileResult
+from app.models.anomaly import (
+    AuditFeedItem,
+    AuditStats,
+    ReconcilePayload,
+    ReconcileResult,
+    UndoPayload,
+    UndoResult,
+)
 from app.services import analytics
 
 router = APIRouter(prefix="/audit", tags=["audit"])
@@ -42,6 +49,37 @@ def reconcile(body: ReconcilePayload):
         ledger = sku.ledger_stock if sku else None
     store.append_audit(claimed.id, body.action, body.associate, body.units)
     return ReconcileResult(ok=True, status=claimed.status, ledger_stock=ledger, ledger_adjustment=adjustment)
+
+
+@router.post("/undo", response_model=UndoResult)
+def undo_reconcile(body: UndoPayload):
+    """Reverts the last reconciliation for an anomaly (Feature D5).
+
+    Reopens the anomaly, adjusts the ledger back if damaged units were written off,
+    and removes the reconciled audit record.
+    """
+    anomaly = store.get_anomaly(body.anomaly_id)
+    if anomaly is None:
+        raise HTTPException(404, "Anomaly not found")
+
+    if anomaly.status == "open":
+        sku = store.get_sku(anomaly.sku_id)
+        return UndoResult(ok=True, reopened=False, anomaly_id=body.anomaly_id, status="open",
+                          ledger_stock=sku.ledger_stock if sku else None)
+
+    last_audit = store.remove_last_audit(body.anomaly_id)
+    if last_audit and last_audit.get("action") == "damaged" and last_audit.get("units"):
+        store.adjust_ledger_stock(anomaly.sku_id, int(last_audit["units"]))
+
+    store.reopen_anomaly(body.anomaly_id)
+    sku = store.get_sku(anomaly.sku_id)
+    return UndoResult(
+        ok=True,
+        reopened=True,
+        anomaly_id=body.anomaly_id,
+        status="open",
+        ledger_stock=sku.ledger_stock if sku else None,
+    )
 
 
 @router.get("/stats", response_model=AuditStats)

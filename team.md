@@ -104,7 +104,7 @@ When these work together, the main story is working end to end: *stock sits in t
 | Page | Who uses it | Module | Status |
 |---|---|---|---|
 | `/` | Anyone | — | Done (links to portals) |
-| `/floor` | Floor staff (phone) | 4 | Stub → D1–D5 |
+| `/floor` | Floor staff (phone) | 4 | Done (D1–D5 complete) |
 | `/dashboard` | Store manager | 5 | Stub → E1–E4 |
 | `/inventory` | Inventory controller | 5 | Stub → E5, E6 |
 | `/simulate` | Judges / demo | 6 | Working buttons → F1, F2 |
@@ -136,7 +136,7 @@ When these work together, the main story is working end to end: *stock sits in t
 |---|---|---|---|
 | B1 | Baseline detector | Shazmina | Done |
 | B2 | Wire detection into API | Shazmina | Done |
-| D1 | Floor app real data | | |
+| D1 | Floor app real data | Shazmina | Done |
 | F1 | Simulation hub flow | | |
 | B3 | ZIP model | Shazmina | Done |
 | B4 | Isolation Forest + combined score | Shazmina | Done |
@@ -147,10 +147,10 @@ When these work together, the main story is working end to end: *stock sits in t
 | C3 | "Why flagged" | Shazmina | Done |
 | C4 | Structured JSON output | Shazmina | Done |
 | C5 | Reliability | Shazmina | Done |
-| D2 | Completion moment | | |
-| D3 | Installable PWA | | |
-| D4 | Item detail sheet | | |
-| D5 | Associate name + undo | | |
+| D2 | Completion moment | Shazmina | Done |
+| D3 | Installable PWA | Shazmina | Done |
+| D4 | Item detail sheet | Shazmina | Done |
+| D5 | Associate name + undo | Shazmina | Done |
 | E1 | Real KPIs | Aathika | Done |
 | E2 | Velocity chart | Aathika | Done |
 | E3 | Category chart | Aathika | Done |

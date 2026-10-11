@@ -8,6 +8,8 @@ import type {
   ReconcileResult,
   SkuDetail,
   SkuWithStatus,
+  UndoPayload,
+  UndoResult,
   VelocityResponse,
 } from "./types";
 
@@ -31,6 +33,11 @@ export const api = {
   getMetrics: () => request<DashboardMetrics>("/api/v1/anomalies/metrics"),
   reconcile: (body: ReconcilePayload) =>
     request<ReconcileResult>("/api/v1/audit/reconcile", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  undoReconcile: (body: UndoPayload) =>
+    request<UndoResult>("/api/v1/audit/undo", {
       method: "POST",
       body: JSON.stringify(body),
     }),
