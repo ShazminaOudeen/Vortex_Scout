@@ -57,7 +57,10 @@ def _llm_briefing(items: list[Anomaly]) -> str:
         return hit[1]
 
     s = get_settings()
-    client = genai.Client(api_key=s.gemini_api_key)
+    client = genai.Client(
+        api_key=s.gemini_api_key,
+        http_options=types.HttpOptions(timeout=15000),
+    )
     payload = [
         {"sku": i.sku_name, "aisle": i.aisle, "bay": i.bay,
          "ledger": i.ledger_stock, "hours_since_sale": i.hours_since_last_sale}
@@ -71,7 +74,10 @@ def _llm_briefing(items: list[Anomaly]) -> str:
             resp = client.models.generate_content(
                 model=s.gemini_model,
                 contents=BRIEFING_PROMPT.format(items=json.dumps(payload)),
-                config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_PROMPT,
+                    automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+                ),
             )
         except errors.APIError as e:
             if e.code not in RETRYABLE:
@@ -86,6 +92,29 @@ def _llm_briefing(items: list[Anomaly]) -> str:
         _CACHE[key] = (time.time(), text)
         return text
     raise last_exc  # type: ignore[misc]
+
+
+def verify_gemini_connection() -> dict:
+    """Verifies the live Gemini API connection and configured model."""
+    s = get_settings()
+    if not s.gemini_api_key:
+        return {"status": "skipped", "message": "No GEMINI_API_KEY configured"}
+    client = genai.Client(
+        api_key=s.gemini_api_key,
+        http_options=types.HttpOptions(timeout=15000),
+    )
+    resp = client.models.generate_content(
+        model=s.gemini_model,
+        contents="Say hello in one short sentence.",
+        config=types.GenerateContentConfig(
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+        ),
+    )
+    return {
+        "status": "ok",
+        "model": s.gemini_model,
+        "response": (resp.text or "").strip(),
+    }
 
 
 def build_checklist(items: list[Anomaly]) -> Checklist:
