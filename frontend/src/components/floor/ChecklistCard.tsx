@@ -15,7 +15,14 @@ export function ChecklistCard({
     <div className="rounded-xl border border-scout-border bg-scout-surface p-4 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="font-semibold">{item.sku_name}</p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="font-semibold">{item.sku_name}</p>
+            {item.revenue_at_risk && item.revenue_at_risk > 0 ? (
+              <span className="rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-rose-400">
+                LKR {Math.round(item.revenue_at_risk).toLocaleString()} at risk
+              </span>
+            ) : null}
+          </div>
           <p className="text-xs text-scout-muted">
             Bay {item.bay} · Ledger {item.ledger_stock} units · {item.hours_since_last_sale}h since last sale
           </p>

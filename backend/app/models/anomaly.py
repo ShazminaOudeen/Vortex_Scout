@@ -23,6 +23,9 @@ class Anomaly(BaseModel):
     resolved_at: datetime | None = None
     void_type: str = "frozen"
     suggested_action: AuditAction = "restocked"
+    unit_price: float = 0.0
+    revenue_at_risk: float = 0.0
+    priority_score: float = 0.0
 
 
 class ChecklistGroup(BaseModel):
@@ -34,6 +37,7 @@ class ChecklistGroup(BaseModel):
 class Checklist(BaseModel):
     briefing: str
     estimated_minutes: int
+    total_revenue_at_risk: float = 0.0
     groups: list[ChecklistGroup]
 
 

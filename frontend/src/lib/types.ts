@@ -31,6 +31,9 @@ export interface Anomaly {
   resolved_at?: string | null;
   void_type?: VoidType;
   suggested_action?: AuditAction;
+  unit_price?: number;
+  revenue_at_risk?: number;
+  priority_score?: number;
 }
 
 export interface ChecklistGroup {
@@ -42,6 +45,7 @@ export interface ChecklistGroup {
 export interface Checklist {
   briefing: string;
   estimated_minutes: number;
+  total_revenue_at_risk?: number;
   groups: ChecklistGroup[];
 }
 

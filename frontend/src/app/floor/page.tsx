@@ -22,7 +22,12 @@ export default function FloorPage() {
 
   return (
     <main className="mx-auto max-w-[420px] space-y-4 p-4">
-      <QuickStatsBar done={resolved.size} total={total} minutes={data.estimated_minutes} />
+      <QuickStatsBar
+        done={resolved.size}
+        total={total}
+        minutes={data.estimated_minutes}
+        totalRevenueAtRisk={data.total_revenue_at_risk}
+      />
       <div className="rounded-xl bg-scout-aiBg p-3 text-sm text-scout-ai">{data.briefing}</div>
       {data.groups.map((g) => (
         <AisleGroup
