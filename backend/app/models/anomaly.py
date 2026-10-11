@@ -104,3 +104,33 @@ class DashboardMetrics(BaseModel):
     audit_completion_rate: float
     iri_rate: float
     category_breakdown: list[CategoryShare]
+
+
+class AuditFeedItem(BaseModel):
+    id: int | str
+    anomaly_id: str
+    sku_id: str
+    sku_name: str
+    category: str
+    aisle: str
+    bay: str
+    action: str
+    associate: str | None = None
+    units: int | None = None
+    created_at: datetime
+    summary: str
+
+
+class VelocityPoint(BaseModel):
+    timestamp: str
+    hour: str
+    expected: float
+    actual: int
+
+
+class VelocityResponse(BaseModel):
+    sku_id: str
+    sku_name: str
+    points: list[VelocityPoint]
+    has_data: bool
+

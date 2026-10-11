@@ -1,9 +1,11 @@
 from fastapi import APIRouter, HTTPException
 
 from app.core import store
-from app.models.anomaly import AuditStats, ReconcilePayload, ReconcileResult
+from app.models.anomaly import AuditFeedItem, AuditStats, ReconcilePayload, ReconcileResult
+from app.services import analytics
 
 router = APIRouter(prefix="/audit", tags=["audit"])
+
 
 
 @router.post("/reconcile", response_model=ReconcileResult)
@@ -49,3 +51,10 @@ def stats():
     total = sum(c.values())
     return AuditStats(total=total, restocked=c["restocked"], damaged=c["damaged"], false_alarm=c["false_alarm"],
                       false_alarm_rate=round(c["false_alarm"] / total, 4) if total else 0.0)
+
+
+@router.get("/feed", response_model=list[AuditFeedItem])
+def audit_feed(limit: int = 50, sku_id: str | None = None):
+    """Recent staff reconciliation actions formatted as an activity feed (Feature E4)."""
+    return analytics.get_audit_feed(limit=limit, sku_id=sku_id)
+
