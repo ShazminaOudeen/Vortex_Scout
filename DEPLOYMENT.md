@@ -1,9 +1,9 @@
 # Vortex Scout — Cloud Deployment Guide
 
-This guide walks through deploying the complete **Vortex Scout** stack using free cloud tiers:
-- **Backend API**: Hosted on **Hugging Face Spaces** (100% Free · No credit card required · 16 GB RAM) or **Render**
+This guide details the deployment of the complete **Vortex Scout** stack:
+- **Backend API**: Hosted on **Render** (Free Web Service)
 - **Frontend App**: Hosted on **Vercel** (Free Hobby Tier)
-- **Database**: In-memory demo store (Zero-config default) or **Supabase** (Free PostgreSQL tier)
+- **Database**: In-memory demo store (Default, zero-configuration) or **Supabase** (Optional PostgreSQL tier)
 
 ---
 
@@ -19,10 +19,10 @@ This guide walks through deploying the complete **Vortex Scout** stack using fre
                    REST Calls with JSON  │ NEXT_PUBLIC_API_URL
                                          ▼
                       ┌──────────────────────────────────────┐
-                      │     Hugging Face Spaces (Backend)    │
+                      │            Render (Backend)          │
                       │       FastAPI + Uvicorn + ML         │
-                      │  https://<user>-vortex-scout-backend │
-                      │              .hf.space               │
+                      │  https://vortex-scout-backend        │
+                      │          .onrender.com               │
                       └──────────────────┬───────────────────┘
                                          │
                      ┌───────────────────┴───────────────────┐
@@ -33,53 +33,46 @@ This guide walks through deploying the complete **Vortex Scout** stack using fre
 
 ---
 
-## Part 1: Deploy Backend to Hugging Face Spaces (No Credit Card)
+## Part 1: Deploy Backend to Render (Free Web Service)
 
-Hugging Face Spaces runs our FastAPI container on a dedicated **16 GB RAM, 2 vCPU machine**. It never requires a credit card or billing details.
+Render provides a free Web Service tier that natively runs Python with Uvicorn.
 
-### Step 1: Create the Space on Hugging Face
-1. Log in to [huggingface.co](https://huggingface.co) (sign in with GitHub or email).
-2. Click your avatar (top right) → **New Space** (or visit `https://huggingface.co/new-space`).
-3. Fill in the options:
-   - **Space name**: `vortex-scout-backend`
-   - **License**: `mit`
-   - **Space SDK**: Select **Docker** → choose **Blank**
-   - **Space hardware**: `Free (CPU basic · 2 vCPU · 16 GB)`
-   - **Visibility**: `Public`
-4. Click **Create Space**.
+### Step-by-Step Render Setup
 
----
+1. In the [Render Dashboard](https://dashboard.render.com), click **+ New** → **Web Service**.
+2. Select **Build and deploy from a Git repository** → click **Next**.
+3. Select your **`Vortex_Scout`** repository and click **Connect**.
+4. Configure the service settings:
+   - **Name**: `vortex-scout-backend`
+   - **Region**: Oregon (US West) or Frankfurt (EU)
+   - **Branch**: `main`
+   - **Root Directory**: `backend` *(⚠️ Make sure to enter `backend` here)*
+   - **Runtime**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+5. Scroll down to **Instance Type** and select **Free** ($0/month).
+6. Under **Environment Variables**, click **Add Environment Variable** and add:
 
-### Step 2: Push Your Code to Hugging Face
-Once the Space is created, copy your Space URL shown on the screen (e.g. `https://huggingface.co/spaces/<your-username>/vortex-scout-backend`).
+| Key | Value | Description |
+|---|---|---|
+| `PYTHON_VERSION` | `3.11.9` | Ensures a stable Python 3.11 runtime on Render |
+| `CORS_ORIGINS` | `*` | Allows browser requests from your Vercel frontend |
+| `GEMINI_MODEL` | `gemini-3.8-flash` | Gemini model for AI Floor briefing & reasons |
+| `GEMINI_API_KEY` | *(Optional)* | Your Google AI Studio API key |
+| `SUPABASE_URL` | *(Optional)* | Supabase URL (leave blank for in-memory) |
+| `SUPABASE_KEY` | *(Optional)* | Supabase anon key (leave blank for in-memory) |
 
-1. **Create an Access Token** (if you don't have one):
-   - Go to [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens).
-   - Click **Create new token** → Name: `scout-deploy` → Type: **Write**.
-   - Copy the token (`hf_...`).
+7. Set **Health Check Path** (under Advanced): `/health`
+8. Click **Create Web Service**.
 
-2. **In your local Git Bash terminal** (at `c:\Dev-Projects\Vortex_Scout`):
-   ```bash
-   git remote add hf https://huggingface.co/spaces/<your-username>/vortex-scout-backend
-   git push hf main
-   ```
-   *When prompted:*
-   - Username: `<your-huggingface-username>`
-   - Password: `<your-huggingface-token>` (the `hf_...` token you copied)
+### Verify Backend Health
+Once Render finishes building and the badge says **Live**:
+- Copy your service URL (e.g. `https://vortex-scout-backend.onrender.com`).
+- Open `https://<your-render-url>/health` in your browser → should return `{"status":"ok"}`.
+- Open `https://<your-render-url>/docs` in your browser → interactive Swagger API documentation.
 
----
-
-### Step 3: Obtain Your Direct API URL
-Once pushed, Hugging Face will automatically build the `Dockerfile` and start the FastAPI server.
-Your direct API URL follows this format:
-```
-https://<your-username>-vortex-scout-backend.hf.space
-```
-*(Notice the hyphen between username and space name, ending in `.hf.space`)*
-
-**Verify it:**
-- Open `https://<your-username>-vortex-scout-backend.hf.space/health` → returns `{"status":"ok"}`
-- Open `https://<your-username>-vortex-scout-backend.hf.space/docs` → interactive Swagger documentation
+> [!NOTE]
+> **Render Free Tier Cold Starts**: Render's free services sleep after 15 minutes of inactivity. When you visit the site after it has been idle, the first request may take 30–50 seconds to boot up. Subsequent requests respond immediately.
 
 ---
 
@@ -99,7 +92,7 @@ Vercel hosts the Next.js frontend with global edge caching and automatic SSL. No
 
 | Name | Value | Note |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | `https://<your-username>-vortex-scout-backend.hf.space` | Use your live Hugging Face API URL from Part 1 |
+| `NEXT_PUBLIC_API_URL` | `https://vortex-scout-backend.onrender.com` | Use your live Render URL from Part 1 (no trailing slash) |
 
 6. Click **Deploy**.
 7. In ~1 minute, Vercel gives you your live production URL (e.g. `https://vortex-scout.vercel.app`).
@@ -131,8 +124,7 @@ Test the live end-to-end flow directly in your browser:
 
 | Issue | Cause | Fix |
 |---|---|---|
-| Hugging Face Space says `Building` or `Paused` | First time build takes ~2 minutes | Check the Space logs; once it says `Running`, it is active |
-| Direct API URL returns 404 on `/` | Root path `/` redirects to docs | Test `https://<username>-<space>.hf.space/health` or `/docs` |
-| CORS error in browser | Backend `CORS_ORIGINS` mismatch | The backend defaults to `*` to allow all Vercel origins |
+| Frontend displays "Failed to fetch" on first visit | Render backend is cold-starting | Wait 30 seconds for Render container to wake up, or ping `/health` |
+| CORS error in browser | Backend `CORS_ORIGINS` mismatch | In Render environment variables, verify `CORS_ORIGINS` is set to `*` or your Vercel URL |
 | Monorepo build error on Vercel | Root Directory not set to `frontend` | Go to Project Settings → General → Root Directory → set to `frontend` and redeploy |
-| Git push to Hugging Face rejected | Password asked instead of token | Use a Hugging Face Access Token with **Write** permission instead of your account password |
+| Supabase connection error | Invalid credentials or blank | Leave both `SUPABASE_URL` and `SUPABASE_KEY` empty to run on the zero-config in-memory store |
