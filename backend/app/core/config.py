@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Any
+from typing import Any, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_name: str = "Scout API"
-    cors_origins: list[str] = ["http://localhost:3000", "*"]
+    cors_origins: Union[str, list[str]] = ["http://localhost:3000", "*"]
 
     @field_validator("cors_origins", mode="before")
     @classmethod
