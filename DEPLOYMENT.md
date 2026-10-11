@@ -1,9 +1,9 @@
 # Vortex Scout — Cloud Deployment Guide
 
 This guide walks through deploying the complete **Vortex Scout** stack using free cloud tiers:
-- **Backend API**: Hosted on [Render](https://render.com) (Free Web Service)
-- **Frontend App**: Hosted on [Vercel](https://vercel.com) (Free Hobby Tier)
-- **Database**: In-memory demo store (Zero-config default) or [Supabase](https://supabase.com) (Free PostgreSQL tier)
+- **Backend API**: Hosted on **Hugging Face Spaces** (100% Free · No credit card required · 16 GB RAM) or **Render**
+- **Frontend App**: Hosted on **Vercel** (Free Hobby Tier)
+- **Database**: In-memory demo store (Zero-config default) or **Supabase** (Free PostgreSQL tier)
 
 ---
 
@@ -19,9 +19,10 @@ This guide walks through deploying the complete **Vortex Scout** stack using fre
                    REST Calls with JSON  │ NEXT_PUBLIC_API_URL
                                          ▼
                       ┌──────────────────────────────────────┐
-                      │            Render (Backend)          │
+                      │     Hugging Face Spaces (Backend)    │
                       │       FastAPI + Uvicorn + ML         │
-                      │  https://vortex-scout.onrender.com   │
+                      │  https://<user>-vortex-scout-backend │
+                      │              .hf.space               │
                       └──────────────────┬───────────────────┘
                                          │
                      ┌───────────────────┴───────────────────┐
@@ -32,110 +33,97 @@ This guide walks through deploying the complete **Vortex Scout** stack using fre
 
 ---
 
-## Part 1: Deploy Backend to Render (Free Tier)
+## Part 1: Deploy Backend to Hugging Face Spaces (No Credit Card)
 
-Render provides a free Web Service tier that can run the Python FastAPI backend.
+Hugging Face Spaces runs our FastAPI container on a dedicated **16 GB RAM, 2 vCPU machine**. It never requires a credit card or billing details.
 
-### Option A: 1-Click Render Blueprint (Recommended)
-
-The repository includes a `render.yaml` blueprint at the root.
-
-1. Sign up or log in to [Render](https://dashboard.render.com).
-2. Click **New +** in the top navigation bar and select **Blueprint**.
-3. Connect your GitHub account and select the `Vortex_Scout` repository.
-4. Render will detect `render.yaml` and configure the service automatically:
-   - **Service Name**: `vortex-scout-backend`
-   - **Root Directory**: `backend`
-   - **Runtime**: Python 3
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-   - **Plan**: Free
-5. Click **Apply**.
-6. When deployment finishes, copy your live backend URL (e.g. `https://vortex-scout-backend.onrender.com`).
+### Step 1: Create the Space on Hugging Face
+1. Log in to [huggingface.co](https://huggingface.co) (sign in with GitHub or email).
+2. Click your avatar (top right) → **New Space** (or visit `https://huggingface.co/new-space`).
+3. Fill in the options:
+   - **Space name**: `vortex-scout-backend`
+   - **License**: `mit`
+   - **Space SDK**: Select **Docker** → choose **Blank**
+   - **Space hardware**: `Free (CPU basic · 2 vCPU · 16 GB)`
+   - **Visibility**: `Public`
+4. Click **Create Space**.
 
 ---
 
-### Option B: Manual Web Service Setup on Render
+### Step 2: Push Your Code to Hugging Face
+Once the Space is created, copy your Space URL shown on the screen (e.g. `https://huggingface.co/spaces/<your-username>/vortex-scout-backend`).
 
-If you prefer setting it up manually:
+1. **Create an Access Token** (if you don't have one):
+   - Go to [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens).
+   - Click **Create new token** → Name: `scout-deploy` → Type: **Write**.
+   - Copy the token (`hf_...`).
 
-1. In the [Render Dashboard](https://dashboard.render.com), click **New +** → **Web Service**.
-2. Select **Build and deploy from a Git repository** and connect `Vortex_Scout`.
-3. Fill in the service configuration:
-   - **Name**: `vortex-scout-backend`
-   - **Region**: Oregon (US West) or Frankfurt (EU)
-   - **Branch**: `main`
-   - **Root Directory**: `backend` *(Important: monorepo subfolder)*
-   - **Runtime**: `Python 3`
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-   - **Instance Type**: `Free`
-4. Expand **Advanced** and add the following **Environment Variables**:
+2. **In your local Git Bash terminal** (at `c:\Dev-Projects\Vortex_Scout`):
+   ```bash
+   git remote add hf https://huggingface.co/spaces/<your-username>/vortex-scout-backend
+   git push hf main
+   ```
+   *When prompted:*
+   - Username: `<your-huggingface-username>`
+   - Password: `<your-huggingface-token>` (the `hf_...` token you copied)
 
-| Variable | Value | Description |
-|---|---|---|
-| `PYTHON_VERSION` | `3.11.9` | Ensures a stable Python 3.11 runtime on Render |
-| `CORS_ORIGINS` | `*` | Allows browser requests from your Vercel frontend |
-| `GEMINI_MODEL` | `gemini-3.8-flash` | LLM model for Floor briefing & "Why flagged" |
-| `GEMINI_API_KEY` | *(Optional)* | Your Google AI Studio API key |
-| `SUPABASE_URL` | *(Optional)* | Supabase project URL (leave blank for in-memory) |
-| `SUPABASE_KEY` | *(Optional)* | Supabase anon/service key |
+---
 
-5. Set **Health Check Path** to `/health`.
-6. Click **Create Web Service**.
+### Step 3: Obtain Your Direct API URL
+Once pushed, Hugging Face will automatically build the `Dockerfile` and start the FastAPI server.
+Your direct API URL follows this format:
+```
+https://<your-username>-vortex-scout-backend.hf.space
+```
+*(Notice the hyphen between username and space name, ending in `.hf.space`)*
 
-### Verify Backend Health
-Once deployed, open:
-- `https://<your-render-service>.onrender.com/health` → should return `{"status":"ok"}`
-- `https://<your-render-service>.onrender.com/docs` → interactive Swagger API documentation
-
-> [!NOTE]
-> **Render Free Tier Cold Starts**: Render's free services spin down after 15 minutes of inactivity. When you visit the site after it has been idle, the first request may take 30–50 seconds to boot up. Subsequent requests are fast.
+**Verify it:**
+- Open `https://<your-username>-vortex-scout-backend.hf.space/health` → returns `{"status":"ok"}`
+- Open `https://<your-username>-vortex-scout-backend.hf.space/docs` → interactive Swagger documentation
 
 ---
 
 ## Part 2: Deploy Frontend to Vercel (Free Tier)
 
-Vercel natively supports Next.js with automatic SSL and global CDN edge routing.
+Vercel hosts the Next.js frontend with global edge caching and automatic SSL. No credit card required.
 
 ### Step-by-Step Vercel Setup
 
-1. Sign up or log in to [Vercel](https://vercel.com).
+1. Sign up or log in to [Vercel](https://vercel.com) using GitHub.
 2. Click **Add New…** → **Project**.
 3. Import your `Vortex_Scout` GitHub repository.
 4. In the **Configure Project** screen:
-   - **Framework Preset**: `Next.js` (detected automatically)
-   - **Root Directory**: Click **Edit** and select `frontend` *(Crucial step!)*
-   - Leave Build and Output Settings as default (`npm run build`).
+   - **Framework Preset**: `Next.js` (automatically detected)
+   - **Root Directory**: Click **Edit** and choose `frontend` *(⚠️ Crucial monorepo setting!)*
 5. Expand **Environment Variables** and add:
 
 | Name | Value | Note |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | `https://<your-render-backend>.onrender.com` | Use your live Render URL from Part 1 (no trailing slash needed) |
+| `NEXT_PUBLIC_API_URL` | `https://<your-username>-vortex-scout-backend.hf.space` | Use your live Hugging Face API URL from Part 1 |
 
 6. Click **Deploy**.
-7. Vercel will build and assign a production URL (e.g. `https://vortex-scout.vercel.app`).
+7. In ~1 minute, Vercel gives you your live production URL (e.g. `https://vortex-scout.vercel.app`).
 
 ---
 
 ## Part 3: Verify the Live Cloud Application
 
-Test the live end-to-end flow directly in the browser:
+Test the live end-to-end flow directly in your browser:
 
 1. **Simulation Hub (`/simulate`)**:
-   - Navigate to `https://<your-vercel-domain>/simulate`.
-   - Click **"Simulate Phantom Stockout (Bay 3B)"** → verifies write to backend state.
-   - Click **"Run Scout Detection & Trigger Agent"** → baseline ML detector runs and flags the phantom void.
+   - Open `https://<your-vercel-domain>/simulate`.
+   - Click **"Simulate Phantom Stockout (Bay 3B)"** → verifies write to cloud backend.
+   - Click **"Run Scout Detection & Trigger Agent"** → ML detector flags the shelf void.
 2. **Floor App (`/floor`)**:
-   - Navigate to `/floor` (or emulate mobile view).
+   - Open `/floor`.
    - Verify the flagged item appears with AI reason and bay number.
-   - Tap **"Restocked"** → status changes, count increments, audit log entry is saved.
+   - Tap **"Restocked"** → status changes and audit log updates.
 3. **Manager Dashboard (`/dashboard`)**:
-   - Navigate to `/dashboard`.
-   - Confirm active void KPI counters, velocity charts, and the recent reconciliation feed update in real time.
+   - Open `/dashboard`.
+   - Confirm active void KPI counters, velocity charts, and recent reconciliation feed reflect real data.
 4. **Evaluation Engine (`/evaluation`)**:
-   - Navigate to `/evaluation`.
-   - Run the benchmark evaluation and view the ROC / Confusion Matrix metrics proving Scout's 96%+ accuracy.
+   - Open `/evaluation`.
+   - Run the benchmark evaluation and inspect live ROC curves proving 96%+ accuracy.
 
 ---
 
@@ -143,7 +131,8 @@ Test the live end-to-end flow directly in the browser:
 
 | Issue | Cause | Fix |
 |---|---|---|
-| Frontend displays "Failed to fetch" on first visit | Render backend is cold-starting | Wait 30 seconds for Render container to wake up, or ping `/health` |
-| CORS error in browser console | Backend `CORS_ORIGINS` mismatch | In Render environment variables, verify `CORS_ORIGINS` is set to `*` or your Vercel URL |
+| Hugging Face Space says `Building` or `Paused` | First time build takes ~2 minutes | Check the Space logs; once it says `Running`, it is active |
+| Direct API URL returns 404 on `/` | Root path `/` redirects to docs | Test `https://<username>-<space>.hf.space/health` or `/docs` |
+| CORS error in browser | Backend `CORS_ORIGINS` mismatch | The backend defaults to `*` to allow all Vercel origins |
 | Monorepo build error on Vercel | Root Directory not set to `frontend` | Go to Project Settings → General → Root Directory → set to `frontend` and redeploy |
-| Supabase connection error | Invalid credentials or blank | Leave both `SUPABASE_URL` and `SUPABASE_KEY` empty to run on the zero-config in-memory store |
+| Git push to Hugging Face rejected | Password asked instead of token | Use a Hugging Face Access Token with **Write** permission instead of your account password |
