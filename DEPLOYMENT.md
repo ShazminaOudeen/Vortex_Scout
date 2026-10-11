@@ -1,9 +1,9 @@
 # Vortex Scout — Cloud Deployment Guide
 
 This guide details the deployment of the complete **Vortex Scout** stack:
-- **Backend API**: Hosted on **Render** (Free Web Service)
-- **Frontend App**: Hosted on **Vercel** (Free Hobby Tier)
-- **Database**: In-memory demo store (Default, zero-configuration) or **Supabase** (Optional PostgreSQL tier)
+- **Backend API**: Hosted on **Railway** (Python 3.12 + FastAPI + ML)
+- **Frontend App**: Hosted on **Vercel** (Next.js 14 App Router)
+- **Database**: In-memory demo store (Default, zero configuration) or **Supabase** (Optional PostgreSQL tier)
 
 ---
 
@@ -19,10 +19,10 @@ This guide details the deployment of the complete **Vortex Scout** stack:
                    REST Calls with JSON  │ NEXT_PUBLIC_API_URL
                                          ▼
                       ┌──────────────────────────────────────┐
-                      │            Render (Backend)          │
+                      │           Railway (Backend)          │
                       │       FastAPI + Uvicorn + ML         │
-                      │  https://vortex-scout-backend        │
-                      │          .onrender.com               │
+                      │   https://vortex-scout-production    │
+                      │            .up.railway.app           │
                       └──────────────────┬───────────────────┘
                                          │
                      ┌───────────────────┴───────────────────┐
@@ -33,52 +33,38 @@ This guide details the deployment of the complete **Vortex Scout** stack:
 
 ---
 
-## Part 1: Deploy Backend to Render (Free Web Service)
+## Part 1: Deploy Backend to Railway
 
-Render provides a free Web Service tier that natively runs Python with Uvicorn.
+Railway automatically builds and runs the container using our root [`Dockerfile`](./Dockerfile).
 
-### Step-by-Step Render Setup
+### Step-by-Step Railway Setup
 
-1. In the [Render Dashboard](https://dashboard.render.com), click **+ New** → **Web Service**.
-2. Select **Build and deploy from a Git repository** → click **Next**.
-3. Select your **`Vortex_Scout`** repository and click **Connect**.
-4. Configure the service settings:
-   - **Name**: `vortex-scout-backend`
-   - **Region**: Oregon (US West) or Frankfurt (EU)
-   - **Branch**: `main`
-   - **Root Directory**: `backend` *(⚠️ Make sure to enter `backend` here)*
-   - **Runtime**: `Python 3`
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-5. Scroll down to **Instance Type** and select **Free** ($0/month).
-6. Under **Environment Variables**, click **Add Environment Variable** and add:
+1. In the [Railway Dashboard](https://railway.com), click **+ New Project** → **Deploy from GitHub repo**.
+2. Select your **`Vortex_Scout`** repository and click **Deploy Now**.
+3. In the project canvas, click on your service box.
+4. Go to the **Variables** tab and add:
 
 | Key | Value | Description |
 |---|---|---|
-| `PYTHON_VERSION` | `3.11.9` | Ensures a stable Python 3.11 runtime on Render |
 | `CORS_ORIGINS` | `*` | Allows browser requests from your Vercel frontend |
 | `GEMINI_MODEL` | `gemini-3.8-flash` | Gemini model for AI Floor briefing & reasons |
-| `GEMINI_API_KEY` | *(Optional)* | Your Google AI Studio API key |
-| `SUPABASE_URL` | *(Optional)* | Supabase URL (leave blank for in-memory) |
-| `SUPABASE_KEY` | *(Optional)* | Supabase anon key (leave blank for in-memory) |
+| `GEMINI_API_KEY` | *(Your key)* | Your Google AI Studio API key |
 
-7. Set **Health Check Path** (under Advanced): `/health`
-8. Click **Create Web Service**.
+5. Go to the **Settings** tab:
+   - Scroll down to **Networking**.
+   - Click **Generate Domain** *(or "Add Domain" → "Railway Domain")*.
+   - Copy the generated domain (e.g. `https://vortex-scout-production.up.railway.app`).
 
 ### Verify Backend Health
-Once Render finishes building and the badge says **Live**:
-- Copy your service URL (e.g. `https://vortex-scout-backend.onrender.com`).
-- Open `https://<your-render-url>/health` in your browser → should return `{"status":"ok"}`.
-- Open `https://<your-render-url>/docs` in your browser → interactive Swagger API documentation.
-
-> [!NOTE]
-> **Render Free Tier Cold Starts**: Render's free services sleep after 15 minutes of inactivity. When you visit the site after it has been idle, the first request may take 30–50 seconds to boot up. Subsequent requests respond immediately.
+Open these URLs in your browser:
+- `https://<your-railway-url>/health` → should return `{"status":"ok"}`
+- `https://<your-railway-url>/docs` → interactive Swagger API documentation
 
 ---
 
-## Part 2: Deploy Frontend to Vercel (Free Tier)
+## Part 2: Deploy Frontend to Vercel
 
-Vercel hosts the Next.js frontend with global edge caching and automatic SSL. No credit card required.
+Vercel hosts the Next.js frontend with global edge caching and automatic SSL.
 
 ### Step-by-Step Vercel Setup
 
@@ -92,7 +78,7 @@ Vercel hosts the Next.js frontend with global edge caching and automatic SSL. No
 
 | Name | Value | Note |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | `https://vortex-scout-backend.onrender.com` | Use your live Render URL from Part 1 (no trailing slash) |
+| `NEXT_PUBLIC_API_URL` | `https://<your-railway-url>` | Use your live Railway URL from Part 1 (no trailing slash) |
 
 6. Click **Deploy**.
 7. In ~1 minute, Vercel gives you your live production URL (e.g. `https://vortex-scout.vercel.app`).
@@ -117,14 +103,3 @@ Test the live end-to-end flow directly in your browser:
 4. **Evaluation Engine (`/evaluation`)**:
    - Open `/evaluation`.
    - Run the benchmark evaluation and inspect live ROC curves proving 96%+ accuracy.
-
----
-
-## Part 4: Production Checklist & Troubleshooting
-
-| Issue | Cause | Fix |
-|---|---|---|
-| Frontend displays "Failed to fetch" on first visit | Render backend is cold-starting | Wait 30 seconds for Render container to wake up, or ping `/health` |
-| CORS error in browser | Backend `CORS_ORIGINS` mismatch | In Render environment variables, verify `CORS_ORIGINS` is set to `*` or your Vercel URL |
-| Monorepo build error on Vercel | Root Directory not set to `frontend` | Go to Project Settings → General → Root Directory → set to `frontend` and redeploy |
-| Supabase connection error | Invalid credentials or blank | Leave both `SUPABASE_URL` and `SUPABASE_KEY` empty to run on the zero-config in-memory store |
