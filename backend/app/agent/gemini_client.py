@@ -17,9 +17,21 @@ from collections import defaultdict
 from google import genai
 from google.genai import types
 
-from app.agent.prompts import BRIEFING_PROMPT, SYSTEM_PROMPT
+from app.agent.prompts import (
+    BRIEFING_PROMPT,
+    STRUCTURED_PLAN_PROMPT,
+    STRUCTURED_PLAN_SYSTEM_PROMPT,
+    SYSTEM_PROMPT,
+)
 from app.core.config import get_settings
-from app.models.anomaly import Anomaly, Checklist, ChecklistGroup
+from app.models.anomaly import (
+    Anomaly,
+    Checklist,
+    ChecklistAgentPlan,
+    ChecklistGroup,
+    ItemStructuredAdvice,
+    PriorityLevel,
+)
 
 log = logging.getLogger(__name__)
 MINUTES_PER_ITEM = 1  # rough walk+check time
@@ -164,17 +176,161 @@ def verify_gemini_connection() -> dict:
         }
 
 
+def _compute_priority_level(a: Anomaly) -> PriorityLevel:
+    if a.revenue_at_risk >= 5000 or (a.revenue_at_risk >= 2000 and a.p_void >= 0.85):
+        return "critical"
+    if a.revenue_at_risk >= 1500 or a.p_void >= 0.80:
+        return "high"
+    if a.revenue_at_risk >= 500 or a.p_void >= 0.75:
+        return "medium"
+    return "low"
+
+
+def _template_plan(items: list[Anomaly]) -> ChecklistAgentPlan:
+    if not items:
+        return ChecklistAgentPlan(
+            briefing="Good morning! No likely shelf voids right now.",
+            start_aisle="",
+            items=[],
+        )
+    briefing = _template_briefing(items)
+    top_item = max(items, key=lambda i: i.revenue_at_risk, default=None)
+    start_aisle = top_item.aisle if top_item else (items[0].aisle if items else "")
+    items_advice = [
+        ItemStructuredAdvice(
+            sku_id=i.sku_id,
+            priority=_compute_priority_level(i),
+            reason=i.why_flagged or (
+                f"Usually sells {getattr(i, 'expected_sales', 1.0) / max(1.0, i.hours_since_last_sale):.1f}/hr, "
+                f"none in {int(i.hours_since_last_sale)} hours, ledger says {i.ledger_stock}."
+            ),
+            suggested_action=i.suggested_action,
+        )
+        for i in items
+    ]
+    return ChecklistAgentPlan(
+        briefing=briefing,
+        start_aisle=start_aisle,
+        items=items_advice,
+    )
+
+
+_PLAN_CACHE: dict[tuple, tuple[float, ChecklistAgentPlan]] = {}
+
+
+def _llm_structured_plan(items: list[Anomaly]) -> ChecklistAgentPlan:
+    if not items:
+        return _template_plan(items)
+    key = tuple(sorted(i.id for i in items))
+    hit = _PLAN_CACHE.get(key)
+    if hit and time.time() - hit[0] < CACHE_SECONDS:
+        return hit[1]
+
+    s = get_settings()
+    client = genai.Client(
+        api_key=s.gemini_api_key,
+        http_options=types.HttpOptions(timeout=15000),
+    )
+    prioritized = prioritize_anomalies(items)
+    payload = [
+        {
+            "sku_id": i.sku_id,
+            "sku_name": i.sku_name,
+            "aisle": i.aisle,
+            "bay": i.bay,
+            "ledger_stock": i.ledger_stock,
+            "hours_since_sale": i.hours_since_last_sale,
+            "revenue_at_risk_lkr": round(i.revenue_at_risk, 2),
+            "p_void": round(i.p_void, 2),
+            "void_type": i.void_type,
+            "category": i.category,
+        }
+        for i in prioritized
+    ]
+    last_exc: Exception | None = None
+    for delay in (0, *RETRY_DELAYS):
+        if delay:
+            time.sleep(delay)
+        try:
+            resp = client.models.generate_content(
+                model=s.gemini_model,
+                contents=STRUCTURED_PLAN_PROMPT.format(items=json.dumps(payload)),
+                config=types.GenerateContentConfig(
+                    system_instruction=STRUCTURED_PLAN_SYSTEM_PROMPT,
+                    response_mime_type="application/json",
+                    response_schema=ChecklistAgentPlan,
+                    temperature=0.2,
+                    automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+                ),
+            )
+        except errors.APIError as e:
+            if e.code not in RETRYABLE:
+                raise
+            last_exc = e
+            log.warning("Gemini %s, retrying structured plan", e.code)
+            continue
+        text = (resp.text or "").strip()
+        if not text:
+            log.warning("Gemini returned empty structured plan; falling back to template")
+            return _template_plan(items)
+        try:
+            plan = ChecklistAgentPlan.model_validate_json(text)
+            _PLAN_CACHE[key] = (time.time(), plan)
+            return plan
+        except Exception:
+            log.exception("Failed to parse Gemini structured response into ChecklistAgentPlan")
+            return _template_plan(items)
+    raise last_exc  # type: ignore[misc]
+
+
+def generate_agent_plan(items: list[Anomaly], use_llm: bool = True) -> ChecklistAgentPlan:
+    """Generate structured audit plan with typed schema (Feature C4)."""
+    if use_llm and get_settings().gemini_api_key and items:
+        try:
+            return _llm_structured_plan(items)
+        except Exception:
+            log.exception("Structured LLM plan call failed; falling back to template plan")
+    return _template_plan(items)
+
+
 def build_checklist(items: list[Anomaly]) -> Checklist:
     briefing = _template_briefing(items)
+    plan: ChecklistAgentPlan | None = None
     if items and get_settings().gemini_api_key:
         try:
-            briefing = _llm_briefing(items) or briefing
-        except Exception:  # network, quota, bad model name...
-            log.exception("Gemini call failed; using template briefing")
+            plan = generate_agent_plan(items, use_llm=True)
+            briefing = plan.briefing or briefing
+        except Exception:
+            log.exception("Structured plan generation failed; using template briefing")
+            try:
+                briefing = _llm_briefing(items) or briefing
+            except Exception:
+                pass
+            plan = _template_plan(items)
+    else:
+        plan = _template_plan(items)
+
+    if plan:
+        advice_by_sku = {a.sku_id: a for a in plan.items}
+        for it in items:
+            adv = advice_by_sku.get(it.sku_id)
+            if adv:
+                it.priority_level = adv.priority
+                if not getattr(it, "why_flagged", ""):
+                    it.why_flagged = adv.reason
+                if adv.suggested_action in ("restocked", "damaged", "false_alarm"):
+                    it.suggested_action = adv.suggested_action
+            else:
+                it.priority_level = _compute_priority_level(it)
+    else:
+        for it in items:
+            it.priority_level = _compute_priority_level(it)
+
     total_rev = round(sum(i.revenue_at_risk for i in items), 2)
     return Checklist(
         briefing=briefing,
         estimated_minutes=max(1, len(items) * MINUTES_PER_ITEM),
         total_revenue_at_risk=total_rev,
         groups=_group(items),
+        plan=plan,
     )

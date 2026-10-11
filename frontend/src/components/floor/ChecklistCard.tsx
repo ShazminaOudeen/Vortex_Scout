@@ -17,6 +17,16 @@ export function ChecklistCard({
         <div>
           <div className="flex flex-wrap items-center gap-1.5">
             <p className="font-semibold">{item.sku_name}</p>
+            {item.priority_level ? (
+              <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                item.priority_level === "critical" ? "bg-rose-500/20 text-rose-400 border border-rose-500/30" :
+                item.priority_level === "high" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" :
+                item.priority_level === "medium" ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" :
+                "bg-zinc-800 text-zinc-400 border border-zinc-700"
+              }`}>
+                {item.priority_level}
+              </span>
+            ) : null}
             {item.revenue_at_risk && item.revenue_at_risk > 0 ? (
               <span className="rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-rose-400">
                 LKR {Math.round(item.revenue_at_risk).toLocaleString()} at risk
