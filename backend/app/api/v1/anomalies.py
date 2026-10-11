@@ -1,8 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.core import store
-from app.models.anomaly import Anomaly, CategoryShare, DashboardMetrics
-from app.services import detection
+from app.models.anomaly import Anomaly, DashboardMetrics, VelocityResponse
+from app.services import analytics, detection
 
 router = APIRouter(prefix="/anomalies", tags=["anomalies"])
 
@@ -14,19 +14,18 @@ def list_anomalies():
 
 @router.get("/metrics", response_model=DashboardMetrics)
 def metrics():
-    open_n = len(store.list_anomalies(status="open"))
-    return DashboardMetrics(
-        revenue_recovered_lkr=482_500,
-        active_voids=open_n,
-        audit_completion_rate=0.94,
-        iri_rate=0.048,
-        category_breakdown=[
-            CategoryShare(category="Chilled Dairy", share=38),
-            CategoryShare(category="Biscuits & Confectionery", share=26),
-            CategoryShare(category="Dry Staples", share=18),
-            CategoryShare(category="Other", share=18),
-        ],
-    )
+    """Real dynamic KPIs computed from current anomalies, catalog, and audit log (Feature E1)."""
+    return analytics.compute_dashboard_metrics()
+
+
+@router.get("/{anomaly_id}/velocity", response_model=VelocityResponse)
+def anomaly_velocity(anomaly_id: str):
+    """Expected vs actual hourly sales velocity for the SKU of a flagged anomaly (Feature E2)."""
+    anom = store.get_anomaly(anomaly_id)
+    if anom is None:
+        raise HTTPException(status_code=404, detail="Anomaly not found")
+    return analytics.compute_sku_velocity(anom.sku_id)
+
 
 
 @router.get("/threshold")

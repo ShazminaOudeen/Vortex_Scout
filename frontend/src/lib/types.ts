@@ -86,3 +86,48 @@ export interface DashboardMetrics {
   iri_rate: number;
   category_breakdown: { category: string; share: number }[];
 }
+
+export interface AuditFeedItem {
+  id: number | string;
+  anomaly_id: string;
+  sku_id: string;
+  sku_name: string;
+  category: string;
+  aisle: string;
+  bay: string;
+  action: AuditAction | string;
+  associate?: string | null;
+  units?: number | null;
+  created_at: string;
+  summary: string;
+}
+
+export interface VelocityPoint {
+  timestamp: string;
+  hour: string;
+  expected: number;
+  actual: number;
+}
+
+export interface VelocityResponse {
+  sku_id: string;
+  sku_name: string;
+  points: VelocityPoint[];
+  has_data: boolean;
+}
+
+export interface SkuWithStatus extends Sku {
+  p_void: number;
+  anomaly_status?: AnomalyStatus | null;
+  anomaly_id?: string | null;
+  has_open_anomaly: boolean;
+  reconciled_today: boolean;
+  risk_level: "critical" | "high" | "normal";
+}
+
+export interface SkuDetail {
+  sku: SkuWithStatus;
+  open_anomaly?: Anomaly | null;
+  audit_history: AuditFeedItem[];
+}
+

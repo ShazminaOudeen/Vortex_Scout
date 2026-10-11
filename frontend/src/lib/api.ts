@@ -1,10 +1,14 @@
 import type {
   Anomaly,
+  AuditFeedItem,
   AuditStats,
   Checklist,
   DashboardMetrics,
   ReconcilePayload,
   ReconcileResult,
+  SkuDetail,
+  SkuWithStatus,
+  VelocityResponse,
 } from "./types";
 
 export const API_URL =
@@ -21,6 +25,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   getAnomalies: () => request<Anomaly[]>("/api/v1/anomalies"),
+  getAnomalyVelocity: (id: string) =>
+    request<VelocityResponse>(`/api/v1/anomalies/${id}/velocity`),
   getChecklist: () => request<Checklist>("/api/v1/agent/checklist"),
   getMetrics: () => request<DashboardMetrics>("/api/v1/anomalies/metrics"),
   reconcile: (body: ReconcilePayload) =>
@@ -29,6 +35,14 @@ export const api = {
       body: JSON.stringify(body),
     }),
   getAuditStats: () => request<AuditStats>("/api/v1/audit/stats"),
+  getAuditFeed: (limit = 50, skuId?: string) =>
+    request<AuditFeedItem[]>(
+      `/api/v1/audit/feed?limit=${limit}${skuId ? `&sku_id=${skuId}` : ""}`
+    ),
+  getSkus: () => request<SkuWithStatus[]>("/api/v1/skus"),
+  getSku: (id: string) => request<SkuDetail>(`/api/v1/skus/${id}`),
+  getSkuVelocity: (id: string) =>
+    request<VelocityResponse>(`/api/v1/skus/${id}/velocity`),
   // /simulate hub
   injectScenario: (scenario: "phantom" | "normal" | "reset") =>
     request<{ ok: boolean; scenario: string } & Record<string, unknown>>(
@@ -38,3 +52,4 @@ export const api = {
   runDetection: () =>
     request<{ flagged: number }>("/api/v1/anomalies/run", { method: "POST" }),
 };
+
