@@ -31,6 +31,25 @@ export interface Anomaly {
   resolved_at?: string | null;
   void_type?: VoidType;
   suggested_action?: AuditAction;
+  unit_price?: number;
+  revenue_at_risk?: number;
+  priority_score?: number;
+  expected_sales?: number;
+  why_flagged?: string;
+  priority_level?: "critical" | "high" | "medium" | "low";
+}
+
+export interface ItemStructuredAdvice {
+  sku_id: string;
+  priority: "critical" | "high" | "medium" | "low";
+  reason: string;
+  suggested_action: AuditAction;
+}
+
+export interface ChecklistAgentPlan {
+  briefing: string;
+  start_aisle: string;
+  items: ItemStructuredAdvice[];
 }
 
 export interface ChecklistGroup {
@@ -42,7 +61,9 @@ export interface ChecklistGroup {
 export interface Checklist {
   briefing: string;
   estimated_minutes: number;
+  total_revenue_at_risk?: number;
   groups: ChecklistGroup[];
+  plan?: ChecklistAgentPlan;
 }
 
 export interface ReconcilePayload {

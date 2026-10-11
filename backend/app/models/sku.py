@@ -15,6 +15,7 @@ class Sku(BaseModel):
     ledger_stock: int
     unit_cost: float
     unit_price: float = 0
+    base_rate: float = 1.0
 
 
 class SkuWithStatus(Sku):
@@ -30,4 +31,3 @@ class SkuDetail(BaseModel):
     sku: SkuWithStatus
     open_anomaly: Anomaly | None = None
     audit_history: list[AuditFeedItem] = []
-
