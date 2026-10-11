@@ -224,14 +224,23 @@ def latest_velocity_hour(store_id: str | None = None) -> datetime | None:
 # --------------------------------------------------------------------------
 def _anomaly_from_row(r: dict, skus: dict[str, Sku]) -> Anomaly:
     sku = skus[r["sku_id"]]
+    hours = float(r["hours_since_last_sale"] or 0)
+    p_void = float(r["p_void"])
+    price = float(sku.unit_price or 0.0)
+    rate = float(getattr(sku, "base_rate", 1.0) or 1.0)
+    rev_at_risk = float(r.get("revenue_at_risk") or round(rate * price * hours, 2))
+    priority = float(r.get("priority_score") or round(rev_at_risk * p_void, 2))
     return Anomaly(
         id=str(r["id"]), sku_id=sku.id, sku_name=sku.name, category=sku.category,
         aisle=sku.aisle, bay=sku.bay,
         ledger_stock=r["ledger_stock_at_detection"] if r.get("ledger_stock_at_detection") is not None else sku.ledger_stock,
-        hours_since_last_sale=float(r["hours_since_last_sale"] or 0), p_void=float(r["p_void"]),
+        hours_since_last_sale=hours, p_void=p_void,
         status=r["status"], detected_at=r["detected_at"], resolved_at=r.get("resolved_at"),
         void_type=r.get("void_type", "frozen"),
         suggested_action=r.get("suggested_action", "restocked"),
+        unit_price=price,
+        revenue_at_risk=rev_at_risk,
+        priority_score=priority,
     )
 
 
@@ -258,12 +267,20 @@ def get_anomaly(anomaly_id: str) -> Anomaly | None:
 def create_anomaly(sku_id: str, p_void: float, hours_since_last_sale: float,
                    ledger_stock: int | None = None, store_id: str | None = None,
                    anomaly_id: str | None = None, void_type: str = "frozen",
-                   suggested_action: str = "restocked") -> Anomaly:
+                   suggested_action: str = "restocked",
+                   revenue_at_risk: float | None = None,
+                   priority_score: float | None = None) -> Anomaly:
     """Open a new anomaly for a SKU. `ledger_stock` defaults to the SKU's current ledger."""
     sku = get_sku(sku_id)
     if sku is None:
         raise ValueError(f"unknown sku_id {sku_id!r}")
     ledger = sku.ledger_stock if ledger_stock is None else ledger_stock
+    rate = float(getattr(sku, "base_rate", 1.0) or 1.0)
+    price = float(sku.unit_price or 0.0)
+    if revenue_at_risk is None:
+        revenue_at_risk = round(rate * price * hours_since_last_sale, 2)
+    if priority_score is None:
+        priority_score = round(revenue_at_risk * p_void, 2)
     if (sb := _sb()) is not None:
         row = sb.table("stockout_anomalies").insert({
             "store_id": store_id or get_settings().default_store_id, "sku_id": sku_id,
@@ -273,13 +290,15 @@ def create_anomaly(sku_id: str, p_void: float, hours_since_last_sale: float,
         return _anomaly_from_row(row, {sku.id: sku})
     a = Anomaly(id=anomaly_id or uuid.uuid4().hex[:12], sku_id=sku.id, sku_name=sku.name, category=sku.category,
                 aisle=sku.aisle, bay=sku.bay, ledger_stock=ledger, hours_since_last_sale=hours_since_last_sale,
-                p_void=p_void, detected_at=_now(), void_type=void_type, suggested_action=suggested_action)
+                p_void=p_void, detected_at=_now(), void_type=void_type, suggested_action=suggested_action,
+                unit_price=price, revenue_at_risk=revenue_at_risk, priority_score=priority_score)
     ANOMALIES[a.id] = a
     return a
 
 
 def update_anomaly(anomaly_id: str, p_void: float, hours_since_last_sale: float, ledger_stock: int,
-                   void_type: str | None = None, suggested_action: str | None = None) -> bool:
+                   void_type: str | None = None, suggested_action: str | None = None,
+                   revenue_at_risk: float | None = None, priority_score: float | None = None) -> bool:
     """Refresh the numbers on an *open* anomaly (keeps its id and detected_at). Returns True if updated."""
     if (sb := _sb()) is not None:
         payload = {"p_void": round(p_void, 3), "hours_since_last_sale": round(hours_since_last_sale, 1),
@@ -296,6 +315,14 @@ def update_anomaly(anomaly_id: str, p_void: float, hours_since_last_sale: float,
         a.void_type = void_type
     if suggested_action is not None:
         a.suggested_action = suggested_action
+    if revenue_at_risk is not None:
+        a.revenue_at_risk = revenue_at_risk
+    else:
+        a.revenue_at_risk = round(a.unit_price * hours_since_last_sale, 2)
+    if priority_score is not None:
+        a.priority_score = priority_score
+    else:
+        a.priority_score = round(a.revenue_at_risk * p_void, 2)
     return True
 
 
@@ -372,9 +399,14 @@ def _reset_memory() -> None:
     SKUS.update({s.id: s for s in load_skus()})
     for aid, sku_id, p_void, hours in _DEMO_ANOMALIES:
         sku = SKUS[sku_id]
+        price = float(sku.unit_price or 0.0)
+        rate = float(getattr(sku, "base_rate", 1.0) or 1.0)
+        rev = round(rate * price * hours, 2)
+        priority = round(rev * p_void, 2)
         ANOMALIES[aid] = Anomaly(
             id=aid, sku_id=sku.id, sku_name=sku.name, category=sku.category, aisle=sku.aisle, bay=sku.bay,
-            ledger_stock=sku.ledger_stock, hours_since_last_sale=hours, p_void=p_void, detected_at=_now())
+            ledger_stock=sku.ledger_stock, hours_since_last_sale=hours, p_void=p_void, detected_at=_now(),
+            unit_price=price, revenue_at_risk=rev, priority_score=priority)
 
 
 def reset() -> None:

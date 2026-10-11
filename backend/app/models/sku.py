@@ -11,3 +11,4 @@ class Sku(BaseModel):
     ledger_stock: int
     unit_cost: float
     unit_price: float = 0
+    base_rate: float = 1.0

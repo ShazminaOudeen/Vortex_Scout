@@ -143,7 +143,7 @@ When these work together, the main story is working end to end: *stock sits in t
 | B5 | Threshold calibration | Shazmina | Done |
 | B6 | Other void types | Shazmina | Done |
 | C1 | Verify live Gemini | Shazmina | Done |
-| C2 | Smart prioritisation | | |
+| C2 | Smart prioritisation | Shazmina | Done |
 | C3 | "Why flagged" | | |
 | C4 | Structured JSON output | | |
 | C5 | Reliability | | |

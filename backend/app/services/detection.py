@@ -126,14 +126,19 @@ def run_detection(threshold_override: float | None = None) -> dict:
     for r, sku in flagged:
         hours = float(gap.get(r.sku_id, r.silent_hours))
         void_type, suggested_action = classify_void(r.sku_id, velocity, category=sku.category)
+        rate = float(getattr(sku, "base_rate", 1.0) or (r.expected_sales / max(1.0, hours)))
+        rev_at_risk = round(rate * float(sku.unit_price or 0.0) * hours, 2)
+        priority_score = round(rev_at_risk * float(r.p_void), 2)
 
         existing = open_by_sku.get(r.sku_id)
         if existing and store.update_anomaly(existing, r.p_void, hours, sku.ledger_stock,
-                                             void_type=void_type, suggested_action=suggested_action):
+                                             void_type=void_type, suggested_action=suggested_action,
+                                             revenue_at_risk=rev_at_risk, priority_score=priority_score):
             updated += 1
         else:
             store.create_anomaly(r.sku_id, r.p_void, hours, ledger_stock=sku.ledger_stock,
-                                 void_type=void_type, suggested_action=suggested_action)
+                                 void_type=void_type, suggested_action=suggested_action,
+                                 revenue_at_risk=rev_at_risk, priority_score=priority_score)
             created += 1
         keep.add(r.sku_id)
         alerts.append({
@@ -142,6 +147,9 @@ def run_detection(threshold_override: float | None = None) -> dict:
             "silent_hours": int(r.silent_hours), "expected_sales": float(r.expected_sales),
             "ledger_stock": sku.ledger_stock, "void_type": void_type,
             "suggested_action": suggested_action,
+            "unit_price": float(sku.unit_price or 0.0),
+            "revenue_at_risk": rev_at_risk,
+            "priority_score": priority_score,
         })
 
     cleared = 0
