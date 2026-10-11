@@ -93,6 +93,49 @@ def _template_briefing(items: list[Anomaly]) -> str:
             f"in {'aisles' if many_aisles else 'aisle'} {aisles}.{start_str}")
 
 
+class CircuitBreaker:
+    """Protects mobile /floor requests from hanging on persistent Gemini upstream outages (Feature C5)."""
+
+    def __init__(self, failure_threshold: int = 3, cooldown_seconds: float = 60.0):
+        self.failure_threshold = failure_threshold
+        self.cooldown_seconds = cooldown_seconds
+        self.consecutive_failures = 0
+        self.last_failure_time: float = 0.0
+        self.state: str = "closed"
+
+    def is_open(self) -> bool:
+        if self.state == "open":
+            if time.time() - self.last_failure_time >= self.cooldown_seconds:
+                self.state = "half_open"
+                return False
+            return True
+        return False
+
+    def record_success(self) -> None:
+        self.consecutive_failures = 0
+        self.state = "closed"
+
+    def record_failure(self) -> None:
+        self.consecutive_failures += 1
+        self.last_failure_time = time.time()
+        if self.consecutive_failures >= self.failure_threshold:
+            self.state = "open"
+
+    def reset(self) -> None:
+        self.consecutive_failures = 0
+        self.last_failure_time = 0.0
+        self.state = "closed"
+
+    def status(self) -> dict:
+        remaining = max(0.0, round(self.cooldown_seconds - (time.time() - self.last_failure_time), 1)) if self.state == "open" else 0.0
+        return {
+            "state": self.state,
+            "consecutive_failures": self.consecutive_failures,
+            "cooldown_remaining_sec": remaining,
+        }
+
+
+CIRCUIT_BREAKER = CircuitBreaker()
 _CACHE: dict[tuple, tuple[float, str]] = {}
 CACHE_SECONDS = 300
 RETRY_DELAYS = (1, 2)  # seconds; keeps the worst case short for /floor
@@ -104,6 +147,10 @@ def _llm_briefing(items: list[Anomaly]) -> str:
     hit = _CACHE.get(key)
     if hit and time.time() - hit[0] < CACHE_SECONDS:
         return hit[1]
+
+    if CIRCUIT_BREAKER.is_open():
+        log.warning("Circuit breaker is open; bypassing LLM briefing call")
+        return ""
 
     s = get_settings()
     client = genai.Client(
@@ -132,6 +179,7 @@ def _llm_briefing(items: list[Anomaly]) -> str:
             )
         except errors.APIError as e:
             if e.code not in RETRYABLE:
+                CIRCUIT_BREAKER.record_failure()
                 raise
             last_exc = e
             log.warning("Gemini %s, retrying", e.code)
@@ -140,8 +188,10 @@ def _llm_briefing(items: list[Anomaly]) -> str:
         if not text:
             log.warning("Gemini returned empty text; using template")
             return ""
+        CIRCUIT_BREAKER.record_success()
         _CACHE[key] = (time.time(), text)
         return text
+    CIRCUIT_BREAKER.record_failure()
     raise last_exc  # type: ignore[misc]
 
 
@@ -226,6 +276,10 @@ def _llm_structured_plan(items: list[Anomaly]) -> ChecklistAgentPlan:
     if hit and time.time() - hit[0] < CACHE_SECONDS:
         return hit[1]
 
+    if CIRCUIT_BREAKER.is_open():
+        log.warning("Circuit breaker is open; bypassing LLM structured plan call")
+        return _template_plan(items)
+
     s = get_settings()
     client = genai.Client(
         api_key=s.gemini_api_key,
@@ -265,6 +319,7 @@ def _llm_structured_plan(items: list[Anomaly]) -> ChecklistAgentPlan:
             )
         except errors.APIError as e:
             if e.code not in RETRYABLE:
+                CIRCUIT_BREAKER.record_failure()
                 raise
             last_exc = e
             log.warning("Gemini %s, retrying structured plan", e.code)
@@ -275,12 +330,39 @@ def _llm_structured_plan(items: list[Anomaly]) -> ChecklistAgentPlan:
             return _template_plan(items)
         try:
             plan = ChecklistAgentPlan.model_validate_json(text)
+            CIRCUIT_BREAKER.record_success()
             _PLAN_CACHE[key] = (time.time(), plan)
             return plan
         except Exception:
             log.exception("Failed to parse Gemini structured response into ChecklistAgentPlan")
             return _template_plan(items)
+    CIRCUIT_BREAKER.record_failure()
     raise last_exc  # type: ignore[misc]
+
+
+def get_agent_health() -> dict:
+    """Returns reliability metrics, circuit breaker state, and cache statistics (Feature C5)."""
+    s = get_settings()
+    configured = bool(s.gemini_api_key)
+    cb_status = CIRCUIT_BREAKER.status()
+    if not configured:
+        health_status = "unconfigured"
+    elif cb_status["state"] == "open":
+        health_status = "degraded"
+    else:
+        health_status = "healthy"
+
+    return {
+        "status": health_status,
+        "configured": configured,
+        "model": s.gemini_model,
+        "timeout_ms": 15000,
+        "circuit_breaker": cb_status,
+        "cache": {
+            "text_cache_entries": len(_CACHE),
+            "plan_cache_entries": len(_PLAN_CACHE),
+        },
+    }
 
 
 def generate_agent_plan(items: list[Anomaly], use_llm: bool = True) -> ChecklistAgentPlan:
