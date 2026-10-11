@@ -217,3 +217,62 @@ export interface DetectionRunResult {
   alerts: DetectionAlertItem[];
 }
 
+export interface ModelMetrics {
+  model_name: string;
+  display_name: string;
+  description: string;
+  precision: number;
+  recall: number;
+  f1_score: number;
+  false_positive_rate: number;
+  accuracy: number;
+  true_positives: number;
+  false_positives: number;
+  false_negatives: number;
+  true_negatives: number;
+  alert_count: number;
+  false_alarms_per_shift: number;
+}
+
+export interface ScenarioModelResult {
+  model_key: string;
+  model_name: string;
+  detected: boolean;
+  false_alarms: number;
+  precision: number;
+  recall: number;
+  flagged_skus: string[];
+}
+
+export interface ScenarioEvaluation {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  void_sku_id?: string | null;
+  void_sku_name?: string | null;
+  void_type?: string | null;
+  silent_hours: number;
+  total_skus: number;
+  model_results: Record<string, ScenarioModelResult>;
+}
+
+export interface ThresholdPoint {
+  threshold: number;
+  precision: number;
+  recall: number;
+  f1: number;
+  false_positive_rate: number;
+}
+
+export interface EvaluationReport {
+  generated_at: string;
+  execution_time_ms: number;
+  total_scenarios_evaluated: number;
+  summary_models: ModelMetrics[];
+  scenarios: ScenarioEvaluation[];
+  threshold_curve: ThresholdPoint[];
+  key_findings: string[];
+  alert_reduction_percent: number;
+}
+

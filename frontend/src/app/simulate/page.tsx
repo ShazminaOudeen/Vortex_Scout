@@ -16,6 +16,7 @@ import {
   Cpu,
   ShieldAlert,
   Flame,
+  Award,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { DetectionRunResult } from "@/lib/types";
@@ -125,6 +126,13 @@ export default function SimulatePage() {
             >
               <Boxes className="h-3.5 w-3.5" />
               <span>Inventory</span>
+            </Link>
+            <Link
+              href="/evaluation"
+              className="flex items-center gap-1.5 rounded-lg border border-teal-500/30 bg-teal-950/40 px-3 py-1.5 font-medium text-teal-300 hover:bg-teal-900/40 transition-colors"
+            >
+              <Award className="h-3.5 w-3.5 text-teal-400" />
+              <span>Model Evaluation</span>
             </Link>
           </div>
         </header>

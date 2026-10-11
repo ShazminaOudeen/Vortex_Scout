@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import agent, anomalies, audit, pos, simulate, skus
+from app.api.v1 import agent, anomalies, audit, evaluation, pos, simulate, skus
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -14,7 +14,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (pos, anomalies, agent, audit, simulate, skus):
+for r in (pos, anomalies, agent, audit, simulate, skus, evaluation):
     app.include_router(r.router, prefix="/api/v1")
 
 

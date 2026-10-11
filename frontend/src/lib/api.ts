@@ -5,6 +5,7 @@ import type {
   Checklist,
   DashboardMetrics,
   DetectionRunResult,
+  EvaluationReport,
   PosTransactionFeedItem,
   ReconcilePayload,
   ReconcileResult,
@@ -65,6 +66,14 @@ export const api = {
     ),
   runDetection: () =>
     request<DetectionRunResult>("/api/v1/anomalies/run", { method: "POST" }),
+  // /evaluation (Feature F3, F4)
+  getEvaluation: (fresh = false) =>
+    request<EvaluationReport>(`/api/v1/evaluation${fresh ? "?fresh=true" : ""}`),
+  runEvaluation: (quick = false, threshold = 0.75) =>
+    request<EvaluationReport>(
+      `/api/v1/evaluation/run?quick=${quick}&threshold=${threshold}`,
+      { method: "POST" }
+    ),
 };
 
 
