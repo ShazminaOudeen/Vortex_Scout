@@ -33,7 +33,7 @@ When these work together, the main story is working end to end: *stock sits in t
 | 3 | **AI Agent (Gemini)** | Turns flagged SKUs into a prioritised, aisle-grouped checklist | In progress (C1 verified) |
 | 4 | **Floor App** | Mobile page for the 3-minute morning audit | UI stub exists |
 | 5 | **Manager Portal** | Dashboard, KPIs, charts, SKU explorer | UI stub exists |
-| 6 | **Demo, Evaluation & Delivery** | Simulation hub, accuracy numbers, deployment, pitch | To do |
+| 6 | **Demo, Evaluation & Delivery** | Simulation hub, accuracy numbers, deployment, pitch | In progress (F1–F6 complete) |
 
 ---
 
@@ -162,7 +162,7 @@ When these work together, the main story is working end to end: *stock sits in t
 | F3 | Evaluation harness | Shazmina | Done |
 | F4 | `/evaluation` page | Shazmina | Done |
 | F5 | End-to-end test | Shazmina | Done |
-| F6 | Deployment | | |
+| F6 | Deployment | Shazmina | Done |
 | F7 | Demo script + video | | |
 | F8 | Slides + docs | | |
 

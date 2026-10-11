@@ -16,8 +16,9 @@ import type {
   VelocityResponse,
 } from "./types";
 
-export const API_URL =
+const RAW_API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const API_URL = RAW_API_URL.replace(/\/+$/, "");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
