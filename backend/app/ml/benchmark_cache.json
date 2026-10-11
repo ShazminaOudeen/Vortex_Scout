@@ -1,0 +1,352 @@
+{
+  "generated_at": "2026-10-11T16:49:18.897337",
+  "execution_time_ms": 42752.2,
+  "total_scenarios_evaluated": 3,
+  "summary_models": [
+    {
+      "model_name": "naive_3h",
+      "display_name": "Simple 3h Silence Rule",
+      "description": "Flags any item silent for ≥3 open hours. Causes massive alert fatigue on slow movers.",
+      "precision": 0.0114,
+      "recall": 1.0,
+      "f1_score": 0.0225,
+      "false_positive_rate": 0.291,
+      "accuracy": 0.71,
+      "true_positives": 2,
+      "false_positives": 174,
+      "false_negatives": 0,
+      "true_negatives": 424,
+      "alert_count": 176,
+      "false_alarms_per_shift": 58.0
+    },
+    {
+      "model_name": "baseline_b1",
+      "display_name": "Bayesian Baseline (B1)",
+      "description": "Likelihood-ratio test weighted by SKU velocity and store trading rhythms.",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "false_positive_rate": 0.0,
+      "accuracy": 1.0,
+      "true_positives": 2,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "true_negatives": 598,
+      "alert_count": 2,
+      "false_alarms_per_shift": 0.0
+    },
+    {
+      "model_name": "zip_b3",
+      "display_name": "Zero-Inflated Poisson (B3)",
+      "description": "Separates expected structural zeros from anomalous shelf voids.",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "false_positive_rate": 0.0,
+      "accuracy": 1.0,
+      "true_positives": 2,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "true_negatives": 598,
+      "alert_count": 2,
+      "false_alarms_per_shift": 0.0
+    },
+    {
+      "model_name": "ensemble_scout",
+      "display_name": "Scout Ensemble (B4)",
+      "description": "Blends ZIP Bayesian posterior (70%) with Isolation Forest multidimensional outlier scoring (30%).",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "false_positive_rate": 0.0,
+      "accuracy": 1.0,
+      "true_positives": 2,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "true_negatives": 598,
+      "alert_count": 2,
+      "false_alarms_per_shift": 0.0
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "scen_frozen_fast",
+      "name": "Abrupt Frozen Stockout (Fast Mover)",
+      "category": "Frozen Void",
+      "description": "Munchee Super Cream Cracker (s1) stops abruptly during trading while ledger says 40 units.",
+      "void_sku_id": "s1",
+      "void_sku_name": "Munchee Super Cream Cracker 490g",
+      "void_type": "frozen",
+      "silent_hours": 8,
+      "total_skus": 200,
+      "model_results": {
+        "naive_3h": {
+          "model_key": "naive_3h",
+          "model_name": "Simple 3h Silence Rule",
+          "detected": true,
+          "false_alarms": 57,
+          "precision": 0.0172,
+          "recall": 1.0,
+          "flagged_skus": [
+            "s1",
+            "s100",
+            "s101",
+            "s105",
+            "s108",
+            "s113",
+            "s116",
+            "s119",
+            "s12",
+            "s125"
+          ]
+        },
+        "baseline_b1": {
+          "model_key": "baseline_b1",
+          "model_name": "Bayesian Baseline (B1)",
+          "detected": true,
+          "false_alarms": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "flagged_skus": [
+            "s1"
+          ]
+        },
+        "zip_b3": {
+          "model_key": "zip_b3",
+          "model_name": "Zero-Inflated Poisson (B3)",
+          "detected": true,
+          "false_alarms": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "flagged_skus": [
+            "s1"
+          ]
+        },
+        "ensemble_scout": {
+          "model_key": "ensemble_scout",
+          "model_name": "Scout Ensemble (B4)",
+          "detected": true,
+          "false_alarms": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "flagged_skus": [
+            "s1"
+          ]
+        }
+      }
+    },
+    {
+      "id": "scen_damaged_perishable",
+      "name": "Damaged / Spoiled Stock (Fresh Dairy)",
+      "category": "Damaged Void",
+      "description": "Anchor Milk Powder (s2) suffers inventory spoilage and is pulled; sales stop, ledger needs write-off.",
+      "void_sku_id": "s2",
+      "void_sku_name": "Anchor Full Cream Milk Powder 400g",
+      "void_type": "damaged",
+      "silent_hours": 8,
+      "total_skus": 200,
+      "model_results": {
+        "naive_3h": {
+          "model_key": "naive_3h",
+          "model_name": "Simple 3h Silence Rule",
+          "detected": true,
+          "false_alarms": 63,
+          "precision": 0.0156,
+          "recall": 1.0,
+          "flagged_skus": [
+            "s101",
+            "s102",
+            "s104",
+            "s105",
+            "s107",
+            "s108",
+            "s115",
+            "s12",
+            "s125",
+            "s126"
+          ]
+        },
+        "baseline_b1": {
+          "model_key": "baseline_b1",
+          "model_name": "Bayesian Baseline (B1)",
+          "detected": true,
+          "false_alarms": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "flagged_skus": [
+            "s2"
+          ]
+        },
+        "zip_b3": {
+          "model_key": "zip_b3",
+          "model_name": "Zero-Inflated Poisson (B3)",
+          "detected": true,
+          "false_alarms": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "flagged_skus": [
+            "s2"
+          ]
+        },
+        "ensemble_scout": {
+          "model_key": "ensemble_scout",
+          "model_name": "Scout Ensemble (B4)",
+          "detected": true,
+          "false_alarms": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "flagged_skus": [
+            "s2"
+          ]
+        }
+      }
+    },
+    {
+      "id": "scen_quiet_midweek",
+      "name": "Quiet Midweek Off-Peak (False Alarm Test)",
+      "category": "Off-Peak Operations",
+      "description": "Off-peak weekday sales where slow-selling SKUs naturally experience multi-hour gaps.",
+      "void_sku_id": null,
+      "void_sku_name": null,
+      "void_type": null,
+      "silent_hours": 0,
+      "total_skus": 200,
+      "model_results": {
+        "naive_3h": {
+          "model_key": "naive_3h",
+          "model_name": "Simple 3h Silence Rule",
+          "detected": false,
+          "false_alarms": 54,
+          "precision": 0.0,
+          "recall": 1.0,
+          "flagged_skus": [
+            "s104",
+            "s105",
+            "s111",
+            "s112",
+            "s113",
+            "s115",
+            "s119",
+            "s12",
+            "s120",
+            "s124"
+          ]
+        },
+        "baseline_b1": {
+          "model_key": "baseline_b1",
+          "model_name": "Bayesian Baseline (B1)",
+          "detected": true,
+          "false_alarms": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "flagged_skus": []
+        },
+        "zip_b3": {
+          "model_key": "zip_b3",
+          "model_name": "Zero-Inflated Poisson (B3)",
+          "detected": true,
+          "false_alarms": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "flagged_skus": []
+        },
+        "ensemble_scout": {
+          "model_key": "ensemble_scout",
+          "model_name": "Scout Ensemble (B4)",
+          "detected": true,
+          "false_alarms": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "flagged_skus": []
+        }
+      }
+    }
+  ],
+  "threshold_curve": [
+    {
+      "threshold": 0.1,
+      "precision": 0.0351,
+      "recall": 1.0,
+      "f1": 0.0678,
+      "false_positive_rate": 0.092
+    },
+    {
+      "threshold": 0.25,
+      "precision": 0.6667,
+      "recall": 1.0,
+      "f1": 0.8,
+      "false_positive_rate": 0.0017
+    },
+    {
+      "threshold": 0.4,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
+    },
+    {
+      "threshold": 0.5,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
+    },
+    {
+      "threshold": 0.6,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
+    },
+    {
+      "threshold": 0.7,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
+    },
+    {
+      "threshold": 0.75,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
+    },
+    {
+      "threshold": 0.8,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
+    },
+    {
+      "threshold": 0.85,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
+    },
+    {
+      "threshold": 0.9,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
+    },
+    {
+      "threshold": 0.95,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
+    }
+  ],
+  "key_findings": [
+    "Naive 3-hour fixed silence rules generated 174 false alarms across benchmark scenarios (averaging 58.0 per shift), severely fatiguing store staff.",
+    "Scout Blended Ensemble eliminated 100.0% of false alerts while retaining high sensitivity (100.0% recall).",
+    "Bayesian likelihood weighting automatically shields slow-movers that sell infrequently, avoiding false alarms during quiet trading.",
+    "Zero-Inflated Poisson baseline cleanly disambiguates structural non-trading zeros from abrupt inventory voids.",
+    "At optimal threshold 0.75, Scout achieves 100.0% precision compared to 1.1% for traditional retail heuristics."
+  ],
+  "alert_reduction_percent": 100.0
+}

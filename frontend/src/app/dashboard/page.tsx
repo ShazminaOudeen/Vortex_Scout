@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AnomalyTable } from "@/components/dashboard/AnomalyTable";
 import { CategoryRiskChart } from "@/components/dashboard/CategoryRiskChart";
 import { MetricCards } from "@/components/dashboard/MetricCards";
@@ -20,12 +21,32 @@ export default function DashboardPage() {
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-6">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Store Manager Portal</h1>
           <p className="text-sm text-scout-muted">
             Overview of phantom inventory, real sales velocity drops, and floor audits.
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/inventory"
+            className="rounded-lg border border-scout-border bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-sm hover:bg-zinc-50 transition-colors"
+          >
+            Inventory
+          </Link>
+          <Link
+            href="/evaluation"
+            className="rounded-lg border border-teal-500/30 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700 shadow-sm hover:bg-teal-100 transition-colors"
+          >
+            Model Evaluation
+          </Link>
+          <Link
+            href="/simulate"
+            className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-zinc-800 transition-colors"
+          >
+            Simulator
+          </Link>
         </div>
       </div>
 

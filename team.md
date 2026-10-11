@@ -108,7 +108,7 @@ When these work together, the main story is working end to end: *stock sits in t
 | `/dashboard` | Store manager | 5 | Stub → E1–E4 |
 | `/inventory` | Inventory controller | 5 | Stub → E5, E6 |
 | `/simulate` | Judges / demo | 6 | Done (F1, F2 complete) |
-| `/evaluation` *(new)* | Judges | 6 | F4 |
+| `/evaluation` *(new)* | Judges | 6 | Done (F4 complete) |
 | `/inventory/[id]` *(new)* | Inventory controller | 5 | E6 |
 
 ---
@@ -159,9 +159,9 @@ When these work together, the main story is working end to end: *stock sits in t
 | E6 | SKU detail page | Aathika | Done |
 | F2 | Live POS terminal | Shazmina | Done |
 
-| F3 | Evaluation harness | | |
-| F4 | `/evaluation` page | | |
-| F5 | End-to-end test | | |
+| F3 | Evaluation harness | Shazmina | Done |
+| F4 | `/evaluation` page | Shazmina | Done |
+| F5 | End-to-end test | Shazmina | Done |
 | F6 | Deployment | | |
 | F7 | Demo script + video | | |
 | F8 | Slides + docs | | |
