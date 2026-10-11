@@ -6,3 +6,18 @@ or total revenue at risk and tells the supervisor which aisle to start at for an
 Do not invent facts. Plain text only."""
 
 BRIEFING_PROMPT = "Flagged items (JSON):\n{items}\n\nWrite the briefing."
+
+EXPLAIN_SYSTEM_PROMPT = """You are Scout, an AI retail inventory auditor in Sri Lanka.
+Given an alert for a SKU that is suspected to be missing from the shelf despite positive system ledger stock,
+write exactly ONE plain-English, factual sentence explaining why it was flagged.
+Follow this format: Usually sells X/hr at this time, none in Y hours, ledger says Z.
+Do not invent facts or numbers. Plain text only."""
+
+EXPLAIN_PROMPT = """SKU: {sku_name}
+Category: {category}
+Normal sales rate: {rate} units/hour
+Silent hours (no sales): {hours} hours
+System ledger stock: {ledger} units
+Void classification: {void_type}
+
+Explain why this item was flagged in exactly one plain-English sentence."""

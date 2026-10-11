@@ -230,6 +230,13 @@ def _anomaly_from_row(r: dict, skus: dict[str, Sku]) -> Anomaly:
     rate = float(getattr(sku, "base_rate", 1.0) or 1.0)
     rev_at_risk = float(r.get("revenue_at_risk") or round(rate * price * hours, 2))
     priority = float(r.get("priority_score") or round(rev_at_risk * p_void, 2))
+    expected = float(r.get("expected_sales") or round(rate * hours, 1))
+    why = r.get("why_flagged")
+    if not why:
+        from app.agent.explainer import template_explanation
+        why = template_explanation(sku.name, rate, hours, sku.ledger_stock,
+                                   void_type=r.get("void_type", "frozen"), category=sku.category,
+                                   expected_sales=expected)
     return Anomaly(
         id=str(r["id"]), sku_id=sku.id, sku_name=sku.name, category=sku.category,
         aisle=sku.aisle, bay=sku.bay,
@@ -241,6 +248,8 @@ def _anomaly_from_row(r: dict, skus: dict[str, Sku]) -> Anomaly:
         unit_price=price,
         revenue_at_risk=rev_at_risk,
         priority_score=priority,
+        expected_sales=expected,
+        why_flagged=why,
     )
 
 
@@ -248,7 +257,7 @@ def list_anomalies(status: str | None = None) -> list[Anomaly]:
     if (sb := _sb()) is not None:
         skus = {s.id: s for s in list_skus()}
         rows = _paged(lambda: (sb.table("stockout_anomalies").select("*").eq("status", status)
-                               if status else sb.table("stockout_anomalies").select("*"))
+                                if status else sb.table("stockout_anomalies").select("*"))
                       .order("detected_at").order("id"))
         return [_anomaly_from_row(r, skus) for r in rows]
     return [a for a in ANOMALIES.values() if status is None or a.status == status]
@@ -269,7 +278,9 @@ def create_anomaly(sku_id: str, p_void: float, hours_since_last_sale: float,
                    anomaly_id: str | None = None, void_type: str = "frozen",
                    suggested_action: str = "restocked",
                    revenue_at_risk: float | None = None,
-                   priority_score: float | None = None) -> Anomaly:
+                   priority_score: float | None = None,
+                   expected_sales: float | None = None,
+                   why_flagged: str | None = None) -> Anomaly:
     """Open a new anomaly for a SKU. `ledger_stock` defaults to the SKU's current ledger."""
     sku = get_sku(sku_id)
     if sku is None:
@@ -281,6 +292,13 @@ def create_anomaly(sku_id: str, p_void: float, hours_since_last_sale: float,
         revenue_at_risk = round(rate * price * hours_since_last_sale, 2)
     if priority_score is None:
         priority_score = round(revenue_at_risk * p_void, 2)
+    if expected_sales is None:
+        expected_sales = round(rate * hours_since_last_sale, 1)
+    if why_flagged is None:
+        from app.agent.explainer import template_explanation
+        why_flagged = template_explanation(sku.name, rate, hours_since_last_sale, ledger,
+                                           void_type=void_type, category=sku.category,
+                                           expected_sales=expected_sales)
     if (sb := _sb()) is not None:
         row = sb.table("stockout_anomalies").insert({
             "store_id": store_id or get_settings().default_store_id, "sku_id": sku_id,
@@ -291,14 +309,16 @@ def create_anomaly(sku_id: str, p_void: float, hours_since_last_sale: float,
     a = Anomaly(id=anomaly_id or uuid.uuid4().hex[:12], sku_id=sku.id, sku_name=sku.name, category=sku.category,
                 aisle=sku.aisle, bay=sku.bay, ledger_stock=ledger, hours_since_last_sale=hours_since_last_sale,
                 p_void=p_void, detected_at=_now(), void_type=void_type, suggested_action=suggested_action,
-                unit_price=price, revenue_at_risk=revenue_at_risk, priority_score=priority_score)
+                unit_price=price, revenue_at_risk=revenue_at_risk, priority_score=priority_score,
+                expected_sales=expected_sales, why_flagged=why_flagged)
     ANOMALIES[a.id] = a
     return a
 
 
 def update_anomaly(anomaly_id: str, p_void: float, hours_since_last_sale: float, ledger_stock: int,
                    void_type: str | None = None, suggested_action: str | None = None,
-                   revenue_at_risk: float | None = None, priority_score: float | None = None) -> bool:
+                   revenue_at_risk: float | None = None, priority_score: float | None = None,
+                   expected_sales: float | None = None, why_flagged: str | None = None) -> bool:
     """Refresh the numbers on an *open* anomaly (keeps its id and detected_at). Returns True if updated."""
     if (sb := _sb()) is not None:
         payload = {"p_void": round(p_void, 3), "hours_since_last_sale": round(hours_since_last_sale, 1),
@@ -323,6 +343,16 @@ def update_anomaly(anomaly_id: str, p_void: float, hours_since_last_sale: float,
         a.priority_score = priority_score
     else:
         a.priority_score = round(a.revenue_at_risk * p_void, 2)
+    if expected_sales is not None:
+        a.expected_sales = expected_sales
+    if why_flagged is not None:
+        a.why_flagged = why_flagged
+    else:
+        from app.agent.explainer import template_explanation
+        rate = a.expected_sales / max(1.0, hours_since_last_sale) if a.expected_sales else 1.0
+        a.why_flagged = template_explanation(a.sku_name, rate, hours_since_last_sale, ledger_stock,
+                                             void_type=a.void_type, category=a.category,
+                                             expected_sales=a.expected_sales)
     return True
 
 
@@ -403,10 +433,14 @@ def _reset_memory() -> None:
         rate = float(getattr(sku, "base_rate", 1.0) or 1.0)
         rev = round(rate * price * hours, 2)
         priority = round(rev * p_void, 2)
+        expected = round(rate * hours, 1)
+        from app.agent.explainer import template_explanation
+        why = template_explanation(sku.name, rate, hours, sku.ledger_stock, void_type="frozen", category=sku.category, expected_sales=expected)
         ANOMALIES[aid] = Anomaly(
             id=aid, sku_id=sku.id, sku_name=sku.name, category=sku.category, aisle=sku.aisle, bay=sku.bay,
             ledger_stock=sku.ledger_stock, hours_since_last_sale=hours, p_void=p_void, detected_at=_now(),
-            unit_price=price, revenue_at_risk=rev, priority_score=priority)
+            unit_price=price, revenue_at_risk=rev, priority_score=priority,
+            expected_sales=expected, why_flagged=why)
 
 
 def reset() -> None:

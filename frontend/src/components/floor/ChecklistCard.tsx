@@ -29,6 +29,11 @@ export function ChecklistCard({
         </div>
         <Badge tone="alert">{Math.round(item.p_void * 100)}%</Badge>
       </div>
+      {item.why_flagged ? (
+        <p className="mt-2.5 rounded-lg border border-zinc-800/80 bg-zinc-900/60 px-2.5 py-1.5 text-xs italic text-zinc-300">
+          💡 {item.why_flagged}
+        </p>
+      ) : null}
       <div className="mt-3 grid grid-cols-3 gap-2">
         <Button variant="success" onClick={() => onAction(item.id, "restocked")}>Restocked</Button>
         <Button variant="warning" onClick={() => onAction(item.id, "damaged")}>Damaged</Button>

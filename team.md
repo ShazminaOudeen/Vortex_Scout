@@ -144,7 +144,7 @@ When these work together, the main story is working end to end: *stock sits in t
 | B6 | Other void types | Shazmina | Done |
 | C1 | Verify live Gemini | Shazmina | Done |
 | C2 | Smart prioritisation | Shazmina | Done |
-| C3 | "Why flagged" | | |
+| C3 | "Why flagged" | Shazmina | Done |
 | C4 | Structured JSON output | | |
 | C5 | Reliability | | |
 | D2 | Completion moment | | |

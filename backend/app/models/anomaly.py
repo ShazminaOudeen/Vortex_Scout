@@ -26,6 +26,17 @@ class Anomaly(BaseModel):
     unit_price: float = 0.0
     revenue_at_risk: float = 0.0
     priority_score: float = 0.0
+    expected_sales: float = 0.0
+    why_flagged: str = ""
+
+
+class ExplanationResponse(BaseModel):
+    anomaly_id: str
+    sku_id: str
+    sku_name: str
+    why_flagged: str
+    source: str = "template"
+    factors: dict
 
 
 class ChecklistGroup(BaseModel):

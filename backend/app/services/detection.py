@@ -18,6 +18,7 @@ import pandas as pd
 
 from app.core import store
 from app.core.config import get_settings
+from app.agent.explainer import explain_anomaly
 from app.ml.baseline import score_voids
 from app.ml.feature_pipeline import get_velocity, hours_since_last_sale
 from app.ml.void_classifier import classify_void
@@ -129,27 +130,40 @@ def run_detection(threshold_override: float | None = None) -> dict:
         rate = float(getattr(sku, "base_rate", 1.0) or (r.expected_sales / max(1.0, hours)))
         rev_at_risk = round(rate * float(sku.unit_price or 0.0) * hours, 2)
         priority_score = round(rev_at_risk * float(r.p_void), 2)
+        expected_sales = float(r.expected_sales)
+        why_flagged = explain_anomaly(
+            sku_name=sku.name,
+            rate=rate,
+            hours=hours,
+            ledger=sku.ledger_stock,
+            void_type=void_type,
+            category=sku.category,
+            expected_sales=expected_sales,
+        )
 
         existing = open_by_sku.get(r.sku_id)
         if existing and store.update_anomaly(existing, r.p_void, hours, sku.ledger_stock,
                                              void_type=void_type, suggested_action=suggested_action,
-                                             revenue_at_risk=rev_at_risk, priority_score=priority_score):
+                                             revenue_at_risk=rev_at_risk, priority_score=priority_score,
+                                             expected_sales=expected_sales, why_flagged=why_flagged):
             updated += 1
         else:
             store.create_anomaly(r.sku_id, r.p_void, hours, ledger_stock=sku.ledger_stock,
                                  void_type=void_type, suggested_action=suggested_action,
-                                 revenue_at_risk=rev_at_risk, priority_score=priority_score)
+                                 revenue_at_risk=rev_at_risk, priority_score=priority_score,
+                                 expected_sales=expected_sales, why_flagged=why_flagged)
             created += 1
         keep.add(r.sku_id)
         alerts.append({
             "sku_id": r.sku_id, "sku_name": sku.name, "aisle": sku.aisle, "bay": sku.bay,
             "category": sku.category, "p_void": float(r.p_void),
-            "silent_hours": int(r.silent_hours), "expected_sales": float(r.expected_sales),
+            "silent_hours": int(r.silent_hours), "expected_sales": expected_sales,
             "ledger_stock": sku.ledger_stock, "void_type": void_type,
             "suggested_action": suggested_action,
             "unit_price": float(sku.unit_price or 0.0),
             "revenue_at_risk": rev_at_risk,
             "priority_score": priority_score,
+            "why_flagged": why_flagged,
         })
 
     cleared = 0
