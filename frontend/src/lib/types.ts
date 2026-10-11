@@ -165,3 +165,55 @@ export interface SkuDetail {
   audit_history: AuditFeedItem[];
 }
 
+export interface PosTransactionFeedItem {
+  id: number | string;
+  store_id: string;
+  sku_id: string;
+  sku_name: string;
+  timestamp: string;
+  quantity: number;
+  unit_price: number;
+  total_amount: number;
+  aisle: string;
+  bay: string;
+}
+
+export interface DetectionAlertItem {
+  sku_id: string;
+  sku_name: string;
+  aisle: string;
+  bay: string;
+  category: string;
+  p_void: number;
+  silent_hours: number;
+  expected_sales: number;
+  ledger_stock: number;
+  void_type?: VoidType;
+  suggested_action?: AuditAction;
+  unit_price: number;
+  revenue_at_risk: number;
+  priority_score: number;
+  why_flagged: string;
+}
+
+export interface DetectionCalibrationInfo {
+  base_threshold: number;
+  effective_threshold: number;
+  total_audits: number;
+  false_alarm_rate: number;
+  status: "calibrated" | "insufficient_data" | "default" | string;
+  reason?: string;
+}
+
+export interface DetectionRunResult {
+  flagged: number;
+  created: number;
+  updated: number;
+  cleared: number;
+  ledger_zero_skipped?: number;
+  threshold: number;
+  calibration?: DetectionCalibrationInfo;
+  data_as_of?: string;
+  alerts: DetectionAlertItem[];
+}
+

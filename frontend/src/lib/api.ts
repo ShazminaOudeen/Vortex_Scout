@@ -4,6 +4,8 @@ import type {
   AuditStats,
   Checklist,
   DashboardMetrics,
+  DetectionRunResult,
+  PosTransactionFeedItem,
   ReconcilePayload,
   ReconcileResult,
   SkuDetail,
@@ -50,6 +52,11 @@ export const api = {
   getSku: (id: string) => request<SkuDetail>(`/api/v1/skus/${id}`),
   getSkuVelocity: (id: string) =>
     request<VelocityResponse>(`/api/v1/skus/${id}/velocity`),
+  // /pos
+  getRecentTransactions: (limit = 50, skuId?: string) =>
+    request<PosTransactionFeedItem[]>(
+      `/api/v1/pos/recent?limit=${limit}${skuId ? `&sku_id=${skuId}` : ""}`
+    ),
   // /simulate hub
   injectScenario: (scenario: "phantom" | "normal" | "reset") =>
     request<{ ok: boolean; scenario: string } & Record<string, unknown>>(
@@ -57,6 +64,7 @@ export const api = {
       { method: "POST" },
     ),
   runDetection: () =>
-    request<{ flagged: number }>("/api/v1/anomalies/run", { method: "POST" }),
+    request<DetectionRunResult>("/api/v1/anomalies/run", { method: "POST" }),
 };
+
 

@@ -3,11 +3,18 @@ import io
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Request, Response
 
+from app.core import store
 from app.core.config import get_settings
-from app.models.transaction import IngestResult, PosBatch
+from app.models.transaction import IngestResult, PosBatch, PosTransactionFeedItem
 from app.services.ingest import ingest as ingest_rows
 
 router = APIRouter(prefix="/pos", tags=["pos"])
+
+
+@router.get("/recent", response_model=list[PosTransactionFeedItem])
+def recent_transactions(limit: int = 50, sku_id: str | None = None):
+    """Retrieve recent POS transactions for the live terminal display (Feature F2)."""
+    return store.list_recent_transactions(limit=limit, sku_id=sku_id)
 
 CSV_COLUMNS = {"timestamp", "sku_id", "quantity", "unit_price"}  # store_id is optional
 

@@ -24,3 +24,16 @@ class IngestResult(BaseModel):
     ingested: int
     rejected: int = 0
     errors: list[IngestError] = Field(default_factory=list)  # capped; `rejected` is the full count
+
+
+class PosTransactionFeedItem(BaseModel):
+    id: int | str
+    store_id: str
+    sku_id: str
+    sku_name: str
+    timestamp: str
+    quantity: int
+    unit_price: float
+    total_amount: float
+    aisle: str = ""
+    bay: str = ""
