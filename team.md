@@ -151,12 +151,12 @@ When these work together, the main story is working end to end: *stock sits in t
 | D3 | Installable PWA | | |
 | D4 | Item detail sheet | | |
 | D5 | Associate name + undo | | |
-| E1 | Real KPIs | | |
-| E2 | Velocity chart | | |
-| E3 | Category chart | | |
-| E4 | Reconciliations feed | | |
-| E5 | `/inventory` explorer | | |
-| E6 | SKU detail page | | |
+| E1 | Real KPIs | Aathika | Done |
+| E2 | Velocity chart | Aathika | Done |
+| E3 | Category chart | Aathika | Done |
+| E4 | Reconciliations feed | Aathika | Done |
+| E5 | `/inventory` explorer | Aathika | Done |
+| E6 | SKU detail page | Aathika | Done |
 | F2 | Live POS terminal | | |
 | F3 | Evaluation harness | | |
 | F4 | `/evaluation` page | | |
