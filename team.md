@@ -107,7 +107,7 @@ When these work together, the main story is working end to end: *stock sits in t
 | `/floor` | Floor staff (phone) | 4 | Done (D1–D5 complete) |
 | `/dashboard` | Store manager | 5 | Stub → E1–E4 |
 | `/inventory` | Inventory controller | 5 | Stub → E5, E6 |
-| `/simulate` | Judges / demo | 6 | Working buttons → F1, F2 |
+| `/simulate` | Judges / demo | 6 | Done (F1, F2 complete) |
 | `/evaluation` *(new)* | Judges | 6 | F4 |
 | `/inventory/[id]` *(new)* | Inventory controller | 5 | E6 |
 
@@ -137,7 +137,7 @@ When these work together, the main story is working end to end: *stock sits in t
 | B1 | Baseline detector | Shazmina | Done |
 | B2 | Wire detection into API | Shazmina | Done |
 | D1 | Floor app real data | Shazmina | Done |
-| F1 | Simulation hub flow | | |
+| F1 | Simulation hub flow | Shazmina | Done |
 | B3 | ZIP model | Shazmina | Done |
 | B4 | Isolation Forest + combined score | Shazmina | Done |
 | B5 | Threshold calibration | Shazmina | Done |
@@ -157,7 +157,8 @@ When these work together, the main story is working end to end: *stock sits in t
 | E4 | Reconciliations feed | Aathika | Done |
 | E5 | `/inventory` explorer | Aathika | Done |
 | E6 | SKU detail page | Aathika | Done |
-| F2 | Live POS terminal | | |
+| F2 | Live POS terminal | Shazmina | Done |
+
 | F3 | Evaluation harness | | |
 | F4 | `/evaluation` page | | |
 | F5 | End-to-end test | | |

@@ -151,6 +151,62 @@ def insert_transactions(rows: list[dict]) -> int:
     return len(rows)
 
 
+def list_recent_transactions(limit: int = 50, sku_id: str | None = None) -> list[dict]:
+    """Retrieve most recent POS transactions (newest first) for live terminal feed (Feature F2)."""
+    skus = {s.id: s for s in list_skus()}
+    if (sb := _sb()) is not None:
+        q = sb.table("pos_transactions").select("*").order("ts", desc=True).limit(limit)
+        if sku_id:
+            q = q.eq("sku_id", sku_id)
+        rows = q.execute().data or []
+        res = []
+        for r in rows:
+            s = skus.get(r["sku_id"])
+            ts_val = r["ts"]
+            ts_dt = from_db(ts_val) if isinstance(ts_val, str) else ts_val
+            ts_str = ts_dt.isoformat() if hasattr(ts_dt, "isoformat") else str(ts_val)
+            qty = int(r["quantity_sold"])
+            price = float(r["unit_price"])
+            res.append({
+                "id": r["id"],
+                "store_id": r["store_id"],
+                "sku_id": r["sku_id"],
+                "sku_name": s.name if s else r["sku_id"],
+                "timestamp": ts_str,
+                "quantity": qty,
+                "unit_price": price,
+                "total_amount": round(price * qty, 2),
+                "aisle": s.aisle if s else "",
+                "bay": s.bay if s else "",
+            })
+        return res
+
+    res = []
+    for idx, t in enumerate(reversed(TRANSACTIONS)):
+        if sku_id and t["sku_id"] != sku_id:
+            continue
+        s = skus.get(t["sku_id"])
+        ts_val = t["timestamp"]
+        ts_str = ts_val.isoformat() if hasattr(ts_val, "isoformat") else str(ts_val)
+        qty = int(t["quantity"])
+        price = float(t["unit_price"])
+        res.append({
+            "id": idx + 1,
+            "store_id": t["store_id"],
+            "sku_id": t["sku_id"],
+            "sku_name": s.name if s else t["sku_id"],
+            "timestamp": ts_str,
+            "quantity": qty,
+            "unit_price": price,
+            "total_amount": round(price * qty, 2),
+            "aisle": s.aisle if s else "",
+            "bay": s.bay if s else "",
+        })
+        if len(res) >= limit:
+            break
+    return res
+
+
 def refresh_hourly_velocity(keys: Iterable[VelocityKey]) -> int:
     """Recompute hourly_velocity for the given (store, sku, hour) buckets from the raw
     transactions and upsert them. Recomputing (rather than incrementing) keeps the table

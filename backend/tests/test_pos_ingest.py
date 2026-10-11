@@ -134,3 +134,27 @@ def test_csv_round_trips_the_generator_output(client, tmp_path):
     df.to_csv(path, index=False)
     r = csv(client, path.read_text())
     assert r.json() == {"ingested": len(df), "rejected": 0, "errors": []}
+
+
+def test_recent_transactions(client):
+    post(client, ROW, {**ROW, "sku_id": "s2", "quantity": 3, "unit_price": 500})
+    r = client.get("/api/v1/pos/recent?limit=10")
+    assert r.status_code == 200
+    items = r.json()
+    assert isinstance(items, list)
+    assert len(items) >= 2
+    # Newest transaction first
+    first = items[0]
+    assert "sku_id" in first
+    assert "sku_name" in first
+    assert "quantity" in first
+    assert "unit_price" in first
+    assert "total_amount" in first
+    assert "timestamp" in first
+
+    # Filtering by sku_id
+    r_filtered = client.get("/api/v1/pos/recent?sku_id=s2")
+    assert r_filtered.status_code == 200
+    filtered_items = r_filtered.json()
+    assert all(item["sku_id"] == "s2" for item in filtered_items)
+
