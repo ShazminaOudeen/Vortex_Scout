@@ -8,6 +8,9 @@ AuditAction = Literal["restocked", "damaged", "false_alarm"]
 VoidType = Literal["frozen", "damaged", "backroom_stuck", "shelf_void"]
 
 
+PriorityLevel = Literal["critical", "high", "medium", "low"]
+
+
 class Anomaly(BaseModel):
     id: str
     sku_id: str
@@ -28,6 +31,20 @@ class Anomaly(BaseModel):
     priority_score: float = 0.0
     expected_sales: float = 0.0
     why_flagged: str = ""
+    priority_level: PriorityLevel = "medium"
+
+
+class ItemStructuredAdvice(BaseModel):
+    sku_id: str
+    priority: PriorityLevel = "medium"
+    reason: str
+    suggested_action: AuditAction = "restocked"
+
+
+class ChecklistAgentPlan(BaseModel):
+    briefing: str
+    start_aisle: str
+    items: list[ItemStructuredAdvice] = []
 
 
 class ExplanationResponse(BaseModel):
@@ -50,6 +67,7 @@ class Checklist(BaseModel):
     estimated_minutes: int
     total_revenue_at_risk: float = 0.0
     groups: list[ChecklistGroup]
+    plan: ChecklistAgentPlan | None = None
 
 
 class ReconcilePayload(BaseModel):
