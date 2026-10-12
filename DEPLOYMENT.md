@@ -50,7 +50,7 @@ The system is deployed and fully operational:
                       └──────────────────┬───────────────────┘
                                          │
                       ┌──────────────────┴───────────────────┐
-                      ▼                                       ▼
+                      ▼                                      ▼
            [In-Memory Store]                        [Supabase PostgreSQL]
          (Default, zero-config)                    (Optional persistence)
 ```
