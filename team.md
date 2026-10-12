@@ -1,67 +1,52 @@
-# Scout — System Architecture, Modules & Technical Delivery Plan
+# Scout — System Modules, Tasks & Implementation Plan
 
 > **Team Vortex | IntelliCon '26 Buildathon**  
 > **Track:** Undergraduate · **Domain:** Retail & Supply Chain AI  
-> **Core Focus:** Autonomous Shelf-Void Detection, Zero-Hardware Inventory Intelligence & GenAI Micro-Audit Routing
+> **Core Focus:** Autonomous Shelf-Void Detection, Zero-Hardware Inventory Intelligence & GenAI Micro-Audit Routing  
+> *(For repository setup, environment configuration, and test instructions, refer to [README.md](README.md))*
 
 ---
 
-## Executive Summary
+## 1. System Architecture & The 4 Core Modules
 
-Supermarket inventory ledgers track what *should* be on the shelf, not what is *actually* there. In modern retail chains across Sri Lanka (e.g., Keells, Cargills), when goods are damaged without POS write-offs, stolen, misplaced in wrong aisles, or left unreplenished in the backroom, the inventory ledger shows positive stock for an empty shelf. This is **phantom inventory (shelf voids)**.
-
-Because the system believes stock exists, automatic replenishment never triggers, resulting in lost sales, frustrated shoppers, and inventory record inaccuracies (IRI).
-
-**Scout** is a zero-hardware intelligence layer that detects phantom stockouts solely through existing Point-of-Sale (POS) transaction streams:
-1. **Learns sales velocity** per SKU conditioned on time of day, day of week, and store trading rhythms.
-2. **Flags shelf voids** when a sudden silence diverges statistically from expected velocity while ledger stock remains $> 0$.
-3. **Generates a 3-minute morning micro-audit** for floor staff using Gemini 3.8 Flash, physically clustered by aisle and bay.
-4. **Closes the loop with single-tap reconciliation** (`Restocked`, `Damaged`, `False Alarm`), syncing back to the ledger.
-
----
-
-## 1. System Architecture & End-to-End Pipeline
-
-Scout is designed as a modular, decoupled architecture consisting of four core functional tiers and two support tiers:
+Scout is designed as a decoupled monorepo structured across four primary functional tiers and two support modules:
 
 ```
-[ Real-Time POS Stream / CSV Feed ]
+[ Mock POS Event Stream / CSV Feed ]
                  │
                  ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ Module 1: POS Stream Ingestion & Feature Store                  │
-│ • FastAPI Batch & CSV Ingestion (POST /api/v1/pos/stream)       │
-│ • 200-SKU Synthetic Supermarket Generator (1,200–2,000 tx/day) │
-│ • Supabase PostgreSQL (or In-Memory Fallback Store)             │
-│ • Dense Hourly Sales Aggregator & Silent Gap Feature Store      │
+│ (FastAPI, Pandas, Supabase PostgreSQL / In-Memory Store)        │
+│ • Batch & CSV ingestion (POST /api/v1/pos/stream)               │
+│ • Dense hourly velocity & silence duration feature store        │
 └────────────────────────────────┬────────────────────────────────┘
                                  │
                                  ▼ Hourly sales velocity & silent gap duration
 ┌─────────────────────────────────────────────────────────────────┐
 │ Module 2: Applied ML Anomaly Detection Engine                   │
-│ • Likelihood-Ratio Statistical Baseline Engine                  │
-│ • Zero-Inflated Poisson (ZIP) Demand-vs-Void Zero Separation    │
-│ • Isolation Forest & Unsupervised Ensemble Anomaly Scorer       │
-│ • Alert Trigger Filter: P_void >= 0.75 AND Ledger Stock > 0     │
+│ (Zero-Inflated Poisson + Isolation Forest + Baseline Scorer)    │
+│ • Likelihood-ratio statistical baseline                         │
+│ • Alert trigger filter: P_void >= 0.75 AND POS Ledger Stock > 0 │
 └────────────────────────────────┬────────────────────────────────┘
                                  │
                                  ▼ Flagged anomalies with aisle, bay & loss risk
 ┌─────────────────────────────────────────────────────────────────┐
 │ Module 3: GenAI Floor Action Agent                              │
-│ • Gemini 3.8 Flash Prompt Pipeline & Context Formatter          │
-│ • Physical Aisle & Bay Cluster Routing (Shortest Walk Path)     │
-│ • Revenue-at-Risk Prioritization & "Why Flagged" Context        │
-│ • High-Reliability Caching & Zero-Downtime Fallback Template    │
+│ (Gemini 3.8 Flash Reasoning & Aisle Cluster Routing)            │
+│ • Shortest physical walking route (Aisle & Bay clustering)      │
+│ • Revenue-at-risk ranking & plain-English "Why Flagged" context │
 └────────────────────────────────┬────────────────────────────────┘
                                  │
                                  ▼ Natural briefing & prioritized task cards
 ┌─────────────────────────────────────────────────────────────────┐
-│ Module 4: Supervisor Mobile PWA & Manager Analytics Portal      │
-│ • Floor Associate PWA (/floor): Handheld 3-min aisle checklist │
+│ Module 4: Supervisor Mobile PWA & Executive Analytics Portal    │
+│ (Next.js 14 App Router, Tailwind CSS, Lucide, Recharts)         │
+│ • Floor Associate PWA (/floor): Handheld 3-min aisle checklist  │
 │   One-tap actions: [Restocked] [Damaged Write-Off] [False Alarm]│
 │ • Store Manager Portal (/dashboard): Recharts velocity drop     │
 │   charts, LKR revenue recovered, chronic phantom categories     │
-│ • SKU Inventory Explorer (/inventory): 200-item inspection table│
+│ • Master Inventory Explorer (/inventory): 200-item inspection   │
 └─────────────────────────────────────────────────────────────────┘
                                  ▲
                                  │ Live trigger & evaluation
@@ -75,118 +60,7 @@ Scout is designed as a modular, decoupled architecture consisting of four core f
 
 ---
 
-## 2. Monorepo Repository Structure
-
-```
-scout/
-├── .env.example
-├── README.md
-├── CONTRIBUTING.md
-├── DEPLOYMENT.md
-├── Dockerfile
-├── docker-compose.yml
-├── team.md                               # System specifications & delivery roadmap
-│
-├── backend/                             # Python 3.12 / FastAPI / ML & AI Engine
-│   ├── requirements.txt
-│   ├── Dockerfile
-│   ├── main.py                          # FastAPI application entry point
-│   │
-│   ├── app/
-│   │   ├── core/
-│   │   │   ├── config.py                # Environment settings (Supabase, Gemini keys)
-│   │   │   ├── database.py              # Supabase async client engine
-│   │   │   ├── store.py                 # Unified data layer (Supabase + in-memory store)
-│   │   │   └── timeutil.py              # Sri Lanka timezone & hourly floor helpers
-│   │   │
-│   │   ├── models/                      # Pydantic schemas
-│   │   │   ├── sku.py                   # SKU definition & ledger quantity
-│   │   │   ├── transaction.py           # POS transactions & ingest batches
-│   │   │   ├── anomaly.py               # Detected anomalies, alerts & audit items
-│   │   │   └── evaluation.py            # Model benchmark & metrics schemas
-│   │   │
-│   │   ├── api/v1/                      # REST API Endpoints
-│   │   │   ├── pos.py                   # /pos/stream (Batch POS ingest & recent terminal)
-│   │   │   ├── anomalies.py             # /anomalies (Detection trigger & alert lists)
-│   │   │   ├── agent.py                 # /agent/checklist (Gemini floor briefing)
-│   │   │   ├── audit.py                 # /audit/reconcile (Staff actions & ledger sync)
-│   │   │   ├── skus.py                  # /skus (200-item catalog retrieval)
-│   │   │   ├── simulate.py              # /simulate (Demo injection hooks)
-│   │   │   └── evaluation.py            # /evaluation (Model benchmark scores)
-│   │   │
-│   │   ├── ml/                          # Anomaly & Statistical Engine
-│   │   │   ├── feature_pipeline.py      # Hourly dense velocity & silence gap metrics
-│   │   │   ├── baseline.py              # Likelihood-ratio statistical detector
-│   │   │   ├── zip_model.py             # Zero-Inflated Poisson modeling
-│   │   │   ├── isolation_forest.py      # scikit-learn anomaly scoring
-│   │   │   ├── void_classifier.py       # Phantom type classification (frozen/damage/taper)
-│   │   │   └── evaluation.py            # Benchmark harness (Precision, Recall, FPR)
-│   │   │
-│   │   ├── agent/                       # GenAI Reasoning Layer
-│   │   │   ├── prompts.py               # Structured prompts for floor routing
-│   │   │   ├── explainer.py             # Plain-English "Why Flagged" generator
-│   │   │   └── gemini_client.py         # Google Gen AI client with cache & fallback
-│   │   │
-│   │   ├── generator/                   # Synthetic Data & Supermarket Fixtures
-│   │   │   ├── generate_mock_pos.py     # 1,200–2,000 daily sales across 200 items
-│   │   │   ├── mock_skus.json           # 200 Sri Lankan grocery SKUs (Keells/Cargills)
-│   │   │   ├── seed.py                  # Database pre-population CLI (14 days)
-│   │   │   └── load_csv.py              # Bulk streaming CSV loader
-│   │   │
-│   │   └── services/                    # Business Logic Orchestration
-│   │       ├── ingest.py                # Transaction validation & chunked storage
-│   │       ├── detection.py             # Anomaly run execution & alert lifecycle
-│   │       └── analytics.py             # Executive KPIs & velocity series aggregation
-│   │
-│   └── tests/                           # Pytest Suite (158 isolated unit/e2e tests)
-│       ├── conftest.py
-│       ├── fake_supabase.py             # Offline Supabase mock
-│       ├── test_pos_ingest.py           # POS ingestion & validation tests
-│       ├── test_audit_flow.py           # Audit reconciliation & ledger write-offs
-│       ├── test_anomaly_engine.py       # Core detector accuracy tests
-│       ├── test_gemini_client.py        # GenAI briefing & fallback tests
-│       └── test_e2e_flow.py             # Full end-to-end integration test
-│
-├── frontend/                            # Next.js 14 App Router (Desktop & Mobile PWA)
-│   ├── package.json
-│   ├── tailwind.config.ts               # Custom Scout operational design tokens
-│   ├── tsconfig.json
-│   │
-│   ├── public/
-│   │   ├── manifest.json                # PWA manifest
-│   │   └── icons/                       # Mobile app icons
-│   │
-│   └── src/
-│       ├── app/
-│       │   ├── layout.tsx
-│       │   ├── page.tsx                 # Landing / Portal Switcher
-│       │   ├── floor/                   # Mobile Supervisor PWA route
-│       │   ├── dashboard/               # Store Manager Executive Portal route
-│       │   ├── inventory/               # 200-SKU Explorer & Alert Log route
-│       │   ├── simulate/                # Hackathon Demo & Injection Hub route
-│       │   └── evaluation/              # ML Model Benchmarking route
-│       │
-│       ├── components/
-│       │   ├── floor/                   # Mobile Checklist, Aisle Groups, Tap Actions
-│       │   ├── dashboard/               # KPI Cards, VelocityChart, CategoryBreakdown
-│       │   ├── inventory/               # Filterable SKU table, status badges
-│       │   ├── simulate/                # Terminal, Injection Buttons, Trigger Bar
-│       │   └── ui/                      # Base buttons, badges, modals, dialogs
-│       │
-│       ├── lib/
-│       │   ├── api.ts                   # Typed API client connecting to FastAPI
-│       │   └── types.ts                 # Shared TypeScript models
-│       └── hooks/
-│           ├── useAnomalies.ts          # SWR data fetching hooks
-│           └── useChecklist.ts          # Mobile checklist state & reconcile mutations
-│
-└── supabase/
-    └── schema.sql                       # PostgreSQL schema (6 core tables & indexes)
-```
-
----
-
-## 3. Modules at a Glance
+## 2. Modules at a Glance
 
 | # | Module | Core Functionality | Primary Tech Stack | Status |
 |---|---|---|---|---|
@@ -199,7 +73,7 @@ scout/
 
 ---
 
-## 4. Detailed Module Breakdown & Task Specifications
+## 3. Detailed Module Breakdown & Task Specifications
 
 ### Module 1: POS Ingestion, Data Store & Feature Store
 *Backend: `backend/app/api/v1/pos.py`, `backend/app/services/ingest.py`, `backend/app/core/store.py`, `backend/app/generator/`*
@@ -292,12 +166,12 @@ Module 6 provides competition judges with an interactive testing environment. It
 | **F4** | **Dedicated Model Evaluation Portal** | M | `src/app/evaluation/page.tsx` | Interactive UI showing benchmark metrics, ROC/confusion matrix insights, and side-by-side performance comparison proving Scout's statistical superiority over fixed heuristic rules. | ✅ Done |
 | **F5** | **End-to-End Automated Integration Test** | S | `backend/tests/test_e2e_flow.py` | Automated verification test: Injects phantom stockout → Runs detection engine → Validates alert creation → Fetches Gemini briefing → Executes staff reconciliation → Verifies ledger deduction and audit row. | ✅ Done |
 | **F6** | **Production Cloud Deployment** | M | `Dockerfile`, `docker-compose.yml`, `DEPLOYMENT.md` | Deployment configuration: FastAPI backend containerized on Render/Railway, Next.js frontend on Vercel, Supabase PostgreSQL in the cloud. | ✅ Done |
-| **F7** | **Competition Demonstration Script & Video** | M | `README.md` | Standardized 3-minute hackathon live pitch flow for judges. | ✅ Done |
+| **F7** | **Competition Demonstration Script & Video** | M | `README.md` | Standardized hackathon pitch flow and demonstration artifacts for judges. | ✅ Done |
 | **F8** | **Final Architectural & ROI Documentation** | M | `README.md`, `team.md` | Comprehensive system documentation detailing architecture, mathematical formulation, operational workflows, and financial impact. | ✅ Done |
 
 ---
 
-## 5. Core Application Routes & Screen Breakdown
+## 4. Core Application Routes & Screen Breakdown
 
 Scout features 4 core operational pages, 1 interactive landing hub, and 1 dedicated evaluation page:
 
@@ -310,99 +184,18 @@ Scout features 4 core operational pages, 1 interactive landing hub, and 1 dedica
  └── /evaluation     (Statistical Benchmark & Model Performance Portal)
 ```
 
-### Route 0: Landing / Route Switcher (`/`)
-- **Target User:** Judges, evaluators, and store staff opening the application root.
-- **Layout & Design:** Clean split-hero landing screen featuring quick access cards:
-  - **Store Manager Portal** $\rightarrow$ opens `/dashboard`.
-  - **Floor Associate PWA** $\rightarrow$ opens `/floor`.
-  - **Judge Demo Playground** $\rightarrow$ opens `/simulate`.
-  - **Model Evaluation Benchmark** $\rightarrow$ opens `/evaluation`.
-
-### Route 1: Executive Analytics Dashboard (`/dashboard`)
-- **Target User:** Store General Manager, Category Replenishment Lead, Regional Operations Director.
-- **Viewport:** Desktop browser (1280px+ wide display).
-- **Core Value:** Proves business value and financial return on investment (ROI) at a single glance.
-- **Key Features:**
-  - **Top KPI Row:** Revenue Recovered (LKR), Active Voids Flagged, Audit Completion Rate (%), and Inventory Inaccuracy Rate reduction.
-  - **Sales Velocity Anomaly Chart (Recharts):** Dual-line graph contrasting expected velocity with actual drop-to-zero sales.
-  - **Department Risk Breakdown:** Bar chart showing void concentration (Chilled Dairy, Biscuits, Confectionery).
-  - **Recent Reconciliations Feed:** Live activity log of shelf verifications and backroom restocks.
-
-### Route 2: Floor Associate Morning Checklist (`/floor`)
-- **Target User:** Floor Supervisors, Shelf Restockers, Morning Audit Associates.
-- **Viewport:** Handheld Mobile PWA (max-width 420px centered on desktop or opened on smartphone).
-- **Core Value:** A friction-free, 3-minute morning walk physically organized by aisle and shelf bay.
-- **Key Features:**
-  - **Shift Header:** Progress counter (*"3 of 7 items verified"*).
-  - **Natural-Language Gemini Briefing:** Contextual morning briefing from Gemini 3.8 Flash.
-  - **Aisle-Clustered Action Cards:** Grouped by store location (e.g., *Aisle 03 — Biscuits & Confectionery*).
-  - **Single-Tap Actions:** `Restocked` (Green), `Damaged Write-Off` (Amber), `False Alarm` (Slate).
-  - **Audio/Haptic Celebration:** Sound chime, haptic pulse, and confetti upon completing all aisle tasks.
-
-### Route 3: SKU Inventory & Anomaly Explorer (`/inventory`)
-- **Target User:** Inventory Controller, Assistant Store Manager, Stock Auditors.
-- **Viewport:** Desktop / Tablet.
-- **Core Value:** Search, inspect, and filter across the complete 200-SKU supermarket catalog and audit history.
-- **Key Features:**
-  - **Filterable Data Table:** SKU Barcode, Product Name, Category, Aisle/Bay, POS Ledger Units, Last Sale Timestamp, Void Risk ($P_{\text{void}}$), and Status Badges.
-  - **Filter Tabs:** `All Items` \| `Critical Voids (P_void >= 0.75)` \| `Reconciled Today`.
-  - **Instant Search:** Real-time filter across Sri Lankan brands (*Munchee*, *Maliban*, *Anchor*, *Highland*).
-
-### Route 4: Interactive Simulation Hub (`/simulate`)
-- **Target User:** Competition Judges, Technical Evaluators, Live Presenters.
-- **Viewport:** Any screen size.
-- **Core Value:** Overcomes the demo dilemma by proving the ML and GenAI pipeline in real time.
-- **Key Features:**
-  - **Preset Scenario Triggers:** 
-    - `Inject Phantom Stockout` (Munchee Super Cream Cracker — 40 in ledger, 0 sales for 8 hrs).
-    - `Simulate Normal Peak Hours` (Healthy velocity across all items).
-    - `Reset Store State` (Clean database state).
-  - **Live Streaming POS Terminal:** Compact black code terminal streaming synthetic sales transactions.
-  - **Instant Detection Trigger:** `Run Scout Detection & Trigger Gemini Agent` $\rightarrow$ watch anomalies instantly reflect on `/floor` and `/dashboard`.
-
-### Route 5: Statistical Model Evaluation Portal (`/evaluation`)
-- **Target User:** Technical Judges, Data Science Evaluators.
-- **Viewport:** Desktop / Tablet.
-- **Core Value:** Provides empirical proof of ML detection accuracy against traditional heuristic baselines.
-- **Key Features:**
-  - **Comparative Metrics:** Precision, Recall, F1-Score, and False Positive Rate across 19,600 simulated SKU checks.
-  - **Baseline vs. Scout Matrix:** Explains why fixed threshold rules fail (generating constant false alarms on slow-movers) compared to Scout's likelihood-ratio formulation.
+| Route | Viewport | Target User | Core Value & Job to be Done |
+|---|---|---|---|
+| **`/`** | Desktop / Mobile | Evaluators & Staff | Split-card portal switcher directing users to Manager Portal, Floor Associate PWA, Simulation Playground, or Model Evaluation. |
+| **`/dashboard`** | Desktop (1280px+) | Store GM, Regional Directors | Proves ROI and operational vigilance: recovered LKR revenue, active void count, Recharts velocity drop curve, and chronic department breakdown. |
+| **`/floor`** | Mobile PWA (max-w 420px) | Floor Supervisors, Restockers | Frictionless 3-minute morning walk physically clustered by aisle/bay with Gemini 3.8 Flash briefing and single-tap resolution buttons (`Restocked`, `Damaged`, `False Alarm`). |
+| **`/inventory`** | Desktop / Tablet | Inventory Controllers | Search, filter, and inspect the complete 200-SKU supermarket catalog and audit logs with instant search, status badges, and $P_{\text{void}}$ risk scores. |
+| **`/simulate`** | Any Screen | Competition Judges | Solves the demo dilemma: 1-click phantom injection triggers, real-time streaming POS code terminal, and immediate detection pipeline execution. |
+| **`/evaluation`** | Desktop / Tablet | Technical Judges & Evaluators | Empirical proof of ML detection accuracy: benchmark metrics (Precision, Recall, F1, FPR) across 19,600 checks, comparing Scout to naive threshold rules. |
 
 ---
 
-## 6. The 3-Minute Live Hackathon Demonstration Script
-
-This battle-tested demonstration sequence proves the entire end-to-end pipeline in under 3 minutes during competition judging:
-
-```
-[ Step 1: Open /simulate ]
-  • Show judges the live POS terminal streaming synthetic sales transactions.
-  • Explain: "The store is trading normally, items are selling steadily."
-
-[ Step 2: Inject Phantom Anomaly ]
-  • Click [Inject Phantom Stockout (Munchee Biscuits)].
-  • Explain: "Munchee Biscuits has 40 units in the POS ledger, but sales abruptly stop
-    due to backroom misplacement or theft. Traditional systems have no idea."
-
-[ Step 3: Run Scout Detection & Trigger Gemini Agent ]
-  • Click [Run Scout Anomaly Detection & Trigger Agent].
-  • Show execution log: The likelihood-ratio engine flags Munchee Biscuits with P_void = 0.94.
-  • Gemini 3.8 Flash synthesizes the morning aisle briefing.
-
-[ Step 4: Open Mobile Floor PWA (/floor) ]
-  • Show judges the mobile supervisor view.
-  • Point out: "Aisle 03 is prioritized. Staff see exactly which bay to check."
-  • Tap [Restocked from Backroom].
-  • Hear the audio chime, see haptic confirmation, and watch the task resolve.
-
-[ Step 5: Switch to Executive Dashboard (/dashboard) ]
-  • Show judges the dual-line Recharts curve: clear visual divergence between expected vs. zero actual sales.
-  • Show updated LKR revenue recovered and verified audit trail.
-```
-
----
-
-## 7. Complete System Implementation & Delivery Matrix
+## 5. Complete System Implementation & Delivery Matrix
 
 Every feature across all six modules is tracked in this delivery matrix. All core features have been implemented and validated against the comprehensive 158-test Pytest suite.
 
@@ -442,39 +235,5 @@ Every feature across all six modules is tracked in this delivery matrix. All cor
 | **F4** | Module 6 | Model Benchmark & Metrics Comparison Portal | M | `frontend/src/app/evaluation/page.tsx` | ✅ Complete & Tested |
 | **F5** | Module 6 | Full End-to-End Automated Integration Test Suite | S | `backend/tests/test_e2e_flow.py` | ✅ Complete & Tested |
 | **F6** | Module 6 | Cloud Deployment Setup (Docker, Render, Vercel, Supabase) | M | `Dockerfile`, `DEPLOYMENT.md` | ✅ Complete & Tested |
-| **F7** | Module 6 | Standardized 3-Minute Hackathon Live Demonstration Script | M | `team.md`, `README.md` | ✅ Complete & Tested |
-| **F8** | Module 6 | Final Architecture, Mathematical Formulation & Slide Assets | M | `team.md`, `README.md` | ✅ Complete & Tested |
-
----
-
-## 8. Quickstart Guide
-
-### 1. Backend Service (FastAPI & ML Engine)
-```bash
-cd backend
-python -m venv venv
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
-
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn main:app --reload --port 8000
-```
-*API & Interactive Swagger Docs:* `http://localhost:8000/docs`
-
-### 2. Frontend Application (Next.js 14 App Router)
-```bash
-cd frontend
-npm install
-npm run dev
-```
-*Web App & Mobile View:* `http://localhost:3000`
-
-### 3. Run Automated Verification Tests
-```bash
-cd backend
-pytest -v
-```
-*(Executes all 158 tests across ingestion, baseline detection, Gemini fallbacks, and audit flows completely offline.)*
+| **F7** | Module 6 | Competition Demonstration Script & Video | M | `README.md` | ✅ Complete & Tested |
+| **F8** | Module 6 | Final Architecture, Mathematical Formulation & Slide Assets | M | `README.md`, `team.md` | ✅ Complete & Tested |
