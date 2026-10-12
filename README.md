@@ -32,7 +32,7 @@ The complete Scout platform is deployed and publicly accessible:
 
 ## Table of Contents
 
-1. [Problem & Overview](#problem--overview)
+1. [Description](#description)
 2. [How It Works](#how-it-works)
 3. [Current Status: Fully Functional vs. Mocked (Transparency Statement)](#current-status-fully-functional-vs-mocked)
 4. [AI Components Used](#ai-components-used)
@@ -48,17 +48,13 @@ The complete Scout platform is deployed and publicly accessible:
 
 ---
 
-## Problem & Overview
+## Description
 
-Supermarket systems track what *should* be on the shelf, not what is *actually* there. In supermarket chains across Sri Lanka (e.g., Keells, Cargills), when damaged goods are discarded without POS write-offs, stolen, misplaced in wrong aisles, or left unreplenished in the backroom, the inventory ledger shows positive stock for an empty shelf. This is **phantom inventory (shelf voids)**.
+Supermarket systems track what should be on the shelf, not what is there. When damaged goods are discarded without a POS update, customers leave items in the wrong aisle, or backroom stock never reaches the shelf, the ledger keeps showing stock for a product whose shelf is empty. This is phantom inventory. Automatic replenishment never triggers because the system believes the stock exists, and staff lose minutes searching for items that are not there.
 
-Because the system believes stock exists, automatic replenishment never triggers, resulting in lost sales, frustrated shoppers, and inventory record inaccuracies (IRI).
+Scout is a zero-hardware intelligence layer that finds these cases using only the point-of-sale data a store already has. It learns how each product normally sells, flags products whose sales have stopped while the ledger still shows stock, and turns the result into a short morning audit checklist for floor supervisors. Staff verify each flagged shelf and reconcile it with a single tap: restocked, damaged, or false alarm.
 
-**Scout** is a zero-hardware intelligence layer that detects phantom stockouts solely through existing Point-of-Sale (POS) transaction streams:
-1. **Learns sales velocity** per SKU conditioned on time of day, day of week, and store trading rhythms.
-2. **Flags shelf voids** when an abrupt sales silence diverges statistically from expected velocity while ledger stock remains $> 0$.
-3. **Generates a 3-minute morning micro-audit** for floor staff using Gemini 3.8 Flash, physically clustered by aisle and bay to eliminate unnecessary store walking.
-4. **Closes the loop with single-tap reconciliation** (`Restocked`, `Damaged`, `False Alarm`), immediately adjusting the ledger on damage write-offs.
+**Target users:** store floor supervisors and category replenishment leads at multi-outlet supermarket chains in Sri Lanka. Secondary beneficiaries are operations managers who need store-level visibility into stock discrepancies.
 
 ---
 
