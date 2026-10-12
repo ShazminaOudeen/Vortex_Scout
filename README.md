@@ -26,8 +26,6 @@ The complete Scout platform is deployed and publicly accessible:
 | **Backend REST API** | Railway | [https://vortexscout-production.up.railway.app](https://vortexscout-production.up.railway.app) | FastAPI streaming endpoints, feature store, ML detection engine & audit flow |
 | **Interactive API Documentation** | Swagger / OpenAPI | [https://vortexscout-production.up.railway.app/docs](https://vortexscout-production.up.railway.app/docs) | Live endpoint testing, schema definitions, and interactive calls |
 
-*(Local installation is completely optional—judges and evaluators can interact with the live links directly.)*
-
 ---
 
 ## Table of Contents
@@ -61,9 +59,9 @@ Scout is a zero-hardware intelligence layer that finds these cases using only th
 ## How It Works
 
 ```
-[ POS Transaction Stream / CSV Feed ]
-                  │
-                  ▼
+        [ POS Transaction Stream / CSV Feed ]
+                        │
+                        ▼
 ┌────────────────────────────────────────────────────────┐
 │ Ingestion Layer (POST /api/v1/pos/stream)              │
 │ • Validates rows, handles chunked bulk inserts         │
@@ -82,7 +80,7 @@ Scout is a zero-hardware intelligence layer that finds these cases using only th
 │ ML Anomaly Detection Engine (POST /anomalies/run)      │
 │ • Likelihood-Ratio Baseline + ZIP count model          │
 │ • Isolation Forest multi-dimensional outlier scoring   │
-│ • Flags void if P_void >= 0.75 AND ledger_stock > 0   │
+│ • Flags void if P_void >= 0.75 AND ledger_stock > 0    │
 └───────────────────────┬────────────────────────────────┘
                         │
                         ▼
@@ -104,7 +102,7 @@ Scout is a zero-hardware intelligence layer that finds these cases using only th
 
 ## Current Status: Fully Functional vs. Mocked
 
-Judges respect absolute honesty about what is real and what is simulated. The following tables delineate the functional scope of Scout:
+The following tables delineate the functional scope of Scout:
 
 ### What Is Fully Functional & Built
 
@@ -349,10 +347,10 @@ Based on simulated benchmark runs across 200 SKUs over 14 days of trading (19,60
 
 | Member | Role |
 |---|---|
-| **G. Shazmina Oudeen** | Team Lead / Full-Stack & ML Engineering |
-| **Aathika Asmeer** | Member / Frontend & Dashboard Analytics |
-| **Nethmi Weerathunga** | Member / Quality Assurance & Data Modeling |
-| **Noorul Shabeeha** | Member / Research & Presentation |
+| **G. Shazmina Oudeen** | Team Lead  |
+| **Aathika Asmeer** | Member  |
+| **Nethmi Weerathunga** | Member  |
+| **Noorul Shabeeha** | Member  |
 
 **Event:** IntelliCon '26 Buildathon (AIESEC in SLIIT)  
 **Track:** Undergraduate · **Domain:** Retail and Supply Chain AI  
