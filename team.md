@@ -12,9 +12,9 @@
 Scout is designed as a decoupled monorepo structured across four primary functional tiers and two support modules:
 
 ```
-[ Mock POS Event Stream / CSV Feed ]
-                 │
-                 ▼
+            [ Mock POS Event Stream / CSV Feed ]
+                           │
+                           ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ Module 1: POS Stream Ingestion & Feature Store                  │
 │ (FastAPI, Pandas, Supabase PostgreSQL / In-Memory Store)        │
