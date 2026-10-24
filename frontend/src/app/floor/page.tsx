@@ -50,6 +50,7 @@ export default function FloorPage() {
   const [lastAction, setLastAction] = useState<{
     anomaly: Anomaly;
     action: AuditAction;
+    timestamp: number;
   } | null>(null);
 
   // PWA & Offline State (Feature D3)
@@ -146,8 +147,8 @@ export default function FloorPage() {
 
   const verifiedCount = Math.min(total, total - activeCount);
 
-  // Total revenue at risk
-  const totalRevenueAtRisk = useMemo(() => {
+  // Revenue computations
+  const activeRevenueAtRisk = useMemo(() => {
     return activeGroups.reduce(
       (sum, g) =>
         sum +
@@ -155,6 +156,16 @@ export default function FloorPage() {
       0
     );
   }, [activeGroups]);
+
+  const totalSessionRevenue = useMemo(() => {
+    return allItems.reduce((sum, i) => sum + (i.revenue_at_risk || 0), 0);
+  }, [allItems]);
+
+  const protectedRevenue = useMemo(() => {
+    return allItems
+      .filter((i) => resolvedIds.has(i.id))
+      .reduce((sum, i) => sum + (i.revenue_at_risk || 0), 0);
+  }, [allItems, resolvedIds]);
 
   // Handle audit reconcile action
   const handleAction = async (id: string, action: AuditAction) => {
@@ -168,7 +179,7 @@ export default function FloorPage() {
     updateResolved((s) => new Set(s).add(id));
 
     // Save for undo (Feature D5)
-    setLastAction({ anomaly: target, action });
+    setLastAction({ anomaly: target, action, timestamp: Date.now() });
 
     // Call backend API with associate name (Feature D1 & D5)
     const payload = {
@@ -311,7 +322,10 @@ export default function FloorPage() {
         done={verifiedCount}
         total={total}
         minutes={data?.estimated_minutes ?? 3}
-        totalRevenueAtRisk={totalRevenueAtRisk}
+        revenueAtRisk={activeRevenueAtRisk}
+        revenueProtected={protectedRevenue}
+        totalRevenue={totalSessionRevenue}
+        totalRevenueAtRisk={activeRevenueAtRisk}
         associateName={associateName}
         onOpenAssociate={() => setIsAssociateModalOpen(true)}
       />
@@ -340,7 +354,7 @@ export default function FloorPage() {
       ) : (
         <AllClearScreen
           totalResolved={verifiedCount}
-          totalRevenue={allItems.reduce((s, i) => s + (i.revenue_at_risk || 0), 0)}
+          totalRevenue={protectedRevenue || totalSessionRevenue}
           onRefresh={() => revalidateChecklist()}
           onResetSession={handleResetSession}
         />
@@ -364,8 +378,10 @@ export default function FloorPage() {
       {/* Floating Undo Toast (Feature D5) */}
       {lastAction && (
         <UndoToast
+          key={`${lastAction.anomaly.id}-${lastAction.action}-${lastAction.timestamp}`}
           skuName={lastAction.anomaly.sku_name}
           action={lastAction.action}
+          anomaly={lastAction.anomaly}
           onUndo={handleUndo}
           onDismiss={() => setLastAction(null)}
         />

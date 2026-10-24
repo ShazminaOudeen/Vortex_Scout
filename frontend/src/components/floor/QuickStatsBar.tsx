@@ -1,10 +1,13 @@
 "use client";
-import { User, Clock, ShieldAlert } from "lucide-react";
+import { User, Clock, ShieldAlert, CheckCircle2 } from "lucide-react";
 
 interface QuickStatsBarProps {
   done: number;
   total: number;
   minutes: number;
+  revenueAtRisk?: number;
+  revenueProtected?: number;
+  totalRevenue?: number;
   totalRevenueAtRisk?: number;
   associateName: string;
   onOpenAssociate: () => void;
@@ -14,12 +17,20 @@ export function QuickStatsBar({
   done,
   total,
   minutes,
+  revenueAtRisk,
+  revenueProtected = 0,
+  totalRevenue = 0,
   totalRevenueAtRisk,
   associateName,
   onOpenAssociate,
 }: QuickStatsBarProps) {
   const pct = total === 0 ? 100 : Math.round((done / total) * 100);
   const remaining = Math.max(0, total - done);
+
+  // Compute robust at-risk and protected numbers supporting both new & legacy props
+  const atRisk = revenueAtRisk !== undefined ? revenueAtRisk : (totalRevenueAtRisk ?? 0);
+  const protectedAmt = revenueProtected > 0 ? revenueProtected : (totalRevenue > atRisk ? totalRevenue - atRisk : 0);
+  const totalAmt = totalRevenue > 0 ? totalRevenue : (atRisk + protectedAmt);
 
   return (
     <div className="rounded-2xl border border-scout-border bg-scout-surface p-4 shadow-sm space-y-3">
@@ -53,10 +64,27 @@ export function QuickStatsBar({
             ) : null}
           </div>
 
-          {totalRevenueAtRisk && totalRevenueAtRisk > 0 ? (
-            <span className="flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-600 border border-rose-100">
-              <ShieldAlert className="h-3.5 w-3.5" />
-              LKR {Math.round(totalRevenueAtRisk).toLocaleString()}
+          {/* Persistent Revenue Badge - transitions from At Risk to Protected rather than vanishing */}
+          {atRisk > 0 && protectedAmt > 0 ? (
+            <div className="flex items-center gap-1.5">
+              <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
+                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                LKR {Math.round(protectedAmt).toLocaleString()} saved
+              </span>
+              <span className="flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-600 border border-rose-100">
+                <ShieldAlert className="h-3 w-3 text-rose-500" />
+                LKR {Math.round(atRisk).toLocaleString()}
+              </span>
+            </div>
+          ) : atRisk > 0 ? (
+            <span className="flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-bold text-rose-600 border border-rose-100">
+              <ShieldAlert className="h-3.5 w-3.5 text-rose-500" />
+              LKR {Math.round(atRisk).toLocaleString()} at risk
+            </span>
+          ) : protectedAmt > 0 || totalAmt > 0 ? (
+            <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 border border-emerald-200">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+              LKR {Math.round(protectedAmt || totalAmt).toLocaleString()} protected
             </span>
           ) : null}
         </div>
