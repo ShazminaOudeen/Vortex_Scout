@@ -1,5 +1,5 @@
 "use client";
-import { User, Volume2, VolumeX, Clock, ShieldAlert } from "lucide-react";
+import { User, Clock, ShieldAlert } from "lucide-react";
 
 interface QuickStatsBarProps {
   done: number;
@@ -8,8 +8,6 @@ interface QuickStatsBarProps {
   totalRevenueAtRisk?: number;
   associateName: string;
   onOpenAssociate: () => void;
-  soundEnabled: boolean;
-  onToggleSound: () => void;
 }
 
 export function QuickStatsBar({
@@ -19,15 +17,13 @@ export function QuickStatsBar({
   totalRevenueAtRisk,
   associateName,
   onOpenAssociate,
-  soundEnabled,
-  onToggleSound,
 }: QuickStatsBarProps) {
   const pct = total === 0 ? 100 : Math.round((done / total) * 100);
   const remaining = Math.max(0, total - done);
 
   return (
     <div className="rounded-2xl border border-scout-border bg-scout-surface p-4 shadow-sm space-y-3">
-      {/* Top Controls: Associate Identity & Audio Toggle */}
+      {/* Top Controls: Associate Identity & Session Status */}
       <div className="flex items-center justify-between pb-2.5 border-b border-scout-border/60">
         <button
           onClick={onOpenAssociate}
@@ -39,17 +35,10 @@ export function QuickStatsBar({
           <span className="text-[10px] text-zinc-400 font-normal">(change)</span>
         </button>
 
-        <button
-          onClick={onToggleSound}
-          className="flex items-center gap-1 rounded-full p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition"
-          title={soundEnabled ? "Mute audio feedback" : "Enable audio feedback"}
-        >
-          {soundEnabled ? (
-            <Volume2 className="h-4 w-4 text-emerald-600" />
-          ) : (
-            <VolumeX className="h-4 w-4 text-zinc-400" />
-          )}
-        </button>
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-zinc-500">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          Audit Session
+        </span>
       </div>
 
       {/* Progress & Metrics */}
