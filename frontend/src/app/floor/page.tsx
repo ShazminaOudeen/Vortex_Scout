@@ -14,15 +14,9 @@ import { ItemDetailSheet } from "@/components/floor/ItemDetailSheet";
 import { AssociateModal } from "@/components/floor/AssociateModal";
 import { UndoToast } from "@/components/floor/UndoToast";
 import { AllClearScreen } from "@/components/floor/AllClearScreen";
-import { ConfettiCanvas } from "@/components/floor/ConfettiCanvas";
 import { useChecklist } from "@/hooks/useAnomalies";
 import { api } from "@/lib/api";
-import {
-  playChime,
-  triggerHaptic,
-  isSoundEnabled,
-  toggleSound,
-} from "@/lib/feedback";
+import { triggerHaptic } from "@/lib/feedback";
 import {
   flushOfflineQueue,
   queueOfflineReconcile,
@@ -58,20 +52,13 @@ export default function FloorPage() {
     action: AuditAction;
   } | null>(null);
 
-  // Audio & Haptics state (Feature D2)
-  const [soundActive, setSoundActive] = useState(true);
-
   // PWA & Offline State (Feature D3)
   const [isOnline, setIsOnline] = useState(true);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
-  // Confetti trigger (Feature D2)
-  const [showConfetti, setShowConfetti] = useState(false);
-
   // Load persisted resolved items and associate from localStorage on mount
   useEffect(() => {
     setIsClientLoaded(true);
-    setSoundActive(isSoundEnabled());
 
     try {
       const savedAssociate = localStorage.getItem(ASSOCIATE_STORAGE_KEY);
@@ -174,25 +161,14 @@ export default function FloorPage() {
     const target = allItems.find((i) => i.id === id);
     if (!target) return;
 
-    // Trigger haptic & sound feedback (Feature D2)
+    // Trigger subtle tactile haptic feedback on supported mobile devices
     triggerHaptic("tap");
-    playChime(action);
 
     // Update local resolved state immediately
-    const nextResolvedCount = verifiedCount + 1;
     updateResolved((s) => new Set(s).add(id));
 
     // Save for undo (Feature D5)
     setLastAction({ anomaly: target, action });
-
-    // Check if this was the last item -> Trigger completion moment (Feature D2)
-    if (nextResolvedCount === total && total > 0) {
-      setTimeout(() => {
-        triggerHaptic("success");
-        playChime("complete");
-        setShowConfetti(true);
-      }, 200);
-    }
 
     // Call backend API with associate name (Feature D1 & D5)
     const payload = {
@@ -220,7 +196,6 @@ export default function FloorPage() {
     const { anomaly } = lastAction;
 
     triggerHaptic("tap");
-    playChime("undo");
 
     // Remove from resolved state
     updateResolved((s) => {
@@ -251,12 +226,6 @@ export default function FloorPage() {
     try {
       localStorage.setItem(ASSOCIATE_STORAGE_KEY, name);
     } catch {}
-  };
-
-  // Toggle audio
-  const handleToggleSound = () => {
-    const next = toggleSound();
-    setSoundActive(next);
   };
 
   // Reset session for demo replay
@@ -313,9 +282,6 @@ export default function FloorPage() {
 
   return (
     <main className="mx-auto max-w-[440px] space-y-4 p-4 pb-20 min-h-screen">
-      {/* Confetti celebration moment (Feature D2) */}
-      {showConfetti && <ConfettiCanvas onComplete={() => setShowConfetti(false)} />}
-
       {/* Offline Alert Banner (Feature D3) */}
       {!isOnline && (
         <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-700 animate-in fade-in">
@@ -340,7 +306,7 @@ export default function FloorPage() {
         </div>
       )}
 
-      {/* Top Quick Stats Bar (Feature D2) */}
+      {/* Top Quick Stats Bar */}
       <QuickStatsBar
         done={verifiedCount}
         total={total}
@@ -348,18 +314,16 @@ export default function FloorPage() {
         totalRevenueAtRisk={totalRevenueAtRisk}
         associateName={associateName}
         onOpenAssociate={() => setIsAssociateModalOpen(true)}
-        soundEnabled={soundActive}
-        onToggleSound={handleToggleSound}
       />
 
       {/* Gemini AI Morning Briefing Card */}
       {data?.briefing && (
-        <div className="rounded-2xl border border-purple-500/20 bg-gradient-to-r from-purple-50 via-white to-purple-50/40 p-3.5 text-xs text-purple-950 shadow-sm dark:bg-purple-950/20 dark:text-purple-200">
-          <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[11px] text-purple-700 mb-1">
-            <Sparkles className="h-3.5 w-3.5 text-purple-600" />
+        <div className="rounded-2xl border border-purple-200/90 bg-gradient-to-r from-purple-50 via-white to-purple-50/70 p-3.5 text-xs shadow-sm">
+          <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[11px] text-purple-900 mb-1">
+            <Sparkles className="h-3.5 w-3.5 text-purple-700" />
             <span>Scout AI Floor Briefing</span>
           </div>
-          <p className="leading-relaxed text-zinc-700">{data.briefing}</p>
+          <p className="leading-relaxed text-zinc-950 font-medium">{data.briefing}</p>
         </div>
       )}
 

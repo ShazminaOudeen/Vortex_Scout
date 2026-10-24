@@ -98,22 +98,22 @@ export function ItemDetailSheet({ item, onClose, onAction }: ItemDetailSheetProp
         </div>
 
         {/* Gemini AI Reason Card (Feature C3 / D4) */}
-        <div className="mt-4 rounded-xl border border-purple-500/20 bg-purple-50/50 p-3.5 dark:bg-purple-950/20">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-purple-700 dark:text-purple-300">
-            <Sparkles className="h-4 w-4" />
+        <div className="mt-4 rounded-xl border border-purple-200/90 bg-purple-50/80 p-3.5 shadow-sm">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900">
+            <Sparkles className="h-4 w-4 text-purple-700" />
             <span>Scout AI Diagnostic & Root Cause</span>
           </div>
-          <p className="mt-1.5 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          <p className="mt-2 text-xs font-semibold text-zinc-950 leading-relaxed">
             {item.why_flagged ||
               `Expected steady sales based on store rhythm. Zero transactions recorded in ${item.hours_since_last_sale} consecutive trading hours while ledger lists ${item.ledger_stock} units. Shelf is likely voided due to backroom misplacement or damaged write-off lag.`}
           </p>
           {item.suggested_action && (
-            <div className="mt-2.5 flex items-center gap-2 pt-2 border-t border-purple-200/60 dark:border-purple-800/40">
-              <span className="text-[11px] font-medium text-purple-600 dark:text-purple-400">
+            <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-purple-200">
+              <span className="text-xs font-bold text-purple-900">
                 Recommended action:
               </span>
-              <span className="rounded bg-purple-200/60 px-2 py-0.5 text-[10px] font-bold uppercase text-purple-900 dark:bg-purple-800 dark:text-purple-200">
-                {item.suggested_action}
+              <span className="rounded-md bg-purple-700 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-white shadow-sm">
+                {item.suggested_action.replace("_", " ")}
               </span>
             </div>
           )}
